@@ -4,9 +4,9 @@ package com.aware.utils;
 import android.content.Context;
 import android.database.Cursor;
 import android.database.SQLException;
-import android.database.sqlite.SQLiteDatabase;
-import android.database.sqlite.SQLiteDatabase.CursorFactory;
-import android.database.sqlite.SQLiteOpenHelper;
+import net.sqlcipher.database.SQLiteDatabase;
+import net.sqlcipher.database.SQLiteDatabase.CursorFactory;
+import net.sqlcipher.database.SQLiteOpenHelper;
 import android.os.Environment;
 import android.text.TextUtils;
 import android.util.Log;
@@ -70,7 +70,8 @@ public class DatabaseHelper extends SQLiteOpenHelper {
 	public DatabaseHelper(Context context, String database_name, CursorFactory cursor_factory, int database_version, String[] database_tables, String[] table_fields) {
         super(context, database_name, cursor_factory, database_version);
 
-        this.database_name = database_name;
+		SQLiteDatabase.loadLibs(context);
+		this.database_name = database_name;
         this.database_tables = database_tables;
         this.table_fields = table_fields;
         this.new_version = database_version;
@@ -184,7 +185,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
 		return ar;
 	}
 
-    @Override
+    //@Override
     public SQLiteDatabase getWritableDatabase() {
     	if( database != null ) {
     		if( ! database.isOpen() ) {
@@ -198,7 +199,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
     	//Get reference to database file, we might not have it.
 		File database_file = getAwareDatabaseFile(mContext, database_name);
     	try {
-    	    SQLiteDatabase current_database = SQLiteDatabase.openDatabase(database_file.getPath(), null, SQLiteDatabase.CREATE_IF_NECESSARY);
+			SQLiteDatabase current_database = SQLiteDatabase.openOrCreateDatabase(database_file.getPath(), "passwordChangeMe",null,null);
     	    int current_version = current_database.getVersion();
 
 			if( current_version != new_version ) {
@@ -216,7 +217,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
     	}
     }
     
-    @Override
+    //@Override
     public SQLiteDatabase getReadableDatabase() {
     	if( database != null ) {
     		if( ! database.isOpen() ) {
@@ -236,7 +237,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
     	//Get reference to database file, we might not have it.
 		File database_file = getAwareDatabaseFile(mContext, database_name);
 		try {
-			SQLiteDatabase current_database = SQLiteDatabase.openDatabase(database_file.getPath(), null, SQLiteDatabase.OPEN_READONLY);
+			SQLiteDatabase current_database = SQLiteDatabase.openDatabase(database_file.getPath(), "passwordChangeMe", null, SQLiteDatabase.OPEN_READONLY);
 			onOpen(current_database);
 			database = current_database;
 			return database;
