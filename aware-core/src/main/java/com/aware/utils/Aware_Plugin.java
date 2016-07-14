@@ -224,6 +224,24 @@ public class Aware_Plugin extends Service {
                         break;
                 }
             }
+
+            /*if (intent.getAction().equals(Aware.ACTION_AWARE_CHANGE_ENCRYPTION_KEY) && !Aware.isStudy(awareContext)){//&& Aware.getSetting(context, Aware_Preferences.STATUS_WEBSERVICE).equals("false")) {
+                TODO: A close version to this code comment can be used to transmit the encryption key to plugins
+
+                Log.d(TAG, "Changing Key");
+
+                //Re-keying all databases
+                String newKey = intent.getStringExtra(DatabaseHelper.INTENT_REKEY_NEW_KEY);
+                String currentKey = aware_preferences.getString(PREF_ENCRYPTION_KEY, KEY_NOT_FOUND);
+                if (!currentKey.equals(KEY_NOT_FOUND)) {
+                    SharedPreferences.Editor editor = aware_preferences.edit();
+                    editor.putString(PREF_ENCRYPTION_KEY, newKey);
+                    editor.commit();
+                    changeSensorsDBKey(newKey);
+                }
+                else if (Aware.DEBUG) Log.w(TAG, "Current encryption key not found in Preferences");
+
+            }*/
         }
     }
     private ContextBroadcaster contextBroadcaster = new ContextBroadcaster();

@@ -28,4 +28,11 @@
     <string name="aware_esm_other_follow">Can you be more specific, please?</string>
     <string name="aware_dirty">Clean old data?</string>
     <string name="aware_device_label">Device label</string>
+    <string name="aware_device_encryption_key">Local databases encryption key</string>
+    <string name="dialog_change">Change</string>
+    <string name="dialog_cancel">Cancel</string>
+    <string name="default_encryption_key">ccccc</string>
+    <string name="dialog_new_key_mismatch">Sorry, the new keys do not match</string>
+    <string name="dialog_old_key_mismatch">Sorry, your current key is incorrect</string>
+    <string name="dialog_short_key">Sorry, your new key should be 5 characters or more</string>
 </resources>

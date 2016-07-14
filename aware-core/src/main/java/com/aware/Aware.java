@@ -36,12 +36,38 @@ import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import com.aware.providers.Accelerometer_Provider;
+import com.aware.providers.Applications_Provider;
 import com.aware.providers.Aware_Provider;
 import com.aware.providers.Aware_Provider.Aware_Device;
 import com.aware.providers.Aware_Provider.Aware_Plugins;
 import com.aware.providers.Aware_Provider.Aware_Settings;
+import com.aware.providers.Barometer_Provider;
+import com.aware.providers.Battery_Provider;
+import com.aware.providers.Bluetooth_Provider;
+import com.aware.providers.Communication_Provider;
+import com.aware.providers.ESM_Provider;
+import com.aware.providers.Gravity_Provider;
+import com.aware.providers.Gyroscope_Provider;
+import com.aware.providers.Installations_Provider;
+import com.aware.providers.Keyboard_Provider;
+import com.aware.providers.Light_Provider;
+import com.aware.providers.Linear_Accelerometer_Provider;
+import com.aware.providers.Locations_Provider;
+import com.aware.providers.Magnetometer_Provider;
+import com.aware.providers.Mqtt_Provider;
+import com.aware.providers.Network_Provider;
+import com.aware.providers.Processor_Provider;
+import com.aware.providers.Proximity_Provider;
+import com.aware.providers.Rotation_Provider;
 import com.aware.providers.Scheduler_Provider;
+import com.aware.providers.Screen_Provider;
+import com.aware.providers.Telephony_Provider;
+import com.aware.providers.Temperature_Provider;
+import com.aware.providers.TimeZone_Provider;
+import com.aware.providers.WiFi_Provider;
 import com.aware.utils.Aware_Plugin;
+import com.aware.utils.DatabaseHelper;
 import com.aware.utils.DownloadPluginService;
 import com.aware.utils.Http;
 import com.aware.utils.Https;
@@ -136,8 +162,18 @@ public class Aware extends Service {
      */
     public static final String ACTION_QUIT_STUDY = "ACTION_QUIT_STUDY";
 
+    /**
+     * Used when changing the encryption key. It is used in Aware_Client
+     */
+    public static final String ACTION_AWARE_CHANGE_ENCRYPTION_KEY = "ACTION_AWARE_CHANGE_ENCRYPTION_KEY";
+
     private static final String SCHEDULE_SPACE_MAINTENANCE = "schedule_aware_space_maintenance";
     private static final String SCHEDULE_SYNC_DATA = "schedule_aware_sync_data";
+
+    /**
+     * Used when asking DataProviders to change their encryption key copy
+     */
+    public static final String METHOD_REKEY_DB = "rekeyDB";
 
     public static String STUDY_ID = "study_id";
     public static String STUDY_START = "study_start";
@@ -176,7 +212,9 @@ public class Aware extends Service {
     private static Intent scheduler = null;
 
     private final static String PREF_FREQUENCY_WATCHDOG = "frequency_watchdog";
+    public final static String PREF_ENCRYPTION_KEY = "encryption_key";
     private final static String PREF_LAST_UPDATE = "last_update";
+    public final static String KEY_NOT_FOUND = "no_key_28062016"; // Default value for not existent SharedPreferences
     private final static int CONST_FREQUENCY_WATCHDOG = 5 * 60; //5 minutes check
 
     private static SharedPreferences aware_preferences;
@@ -208,6 +246,18 @@ public class Aware extends Service {
         }
     }
 
+    /**
+     * Loads the default hard-coded key from strings.xml. This key needs to be changed by the user
+     */
+    private void loadDefaultEncryptionKey(){
+        String currentKey = aware_preferences.getString(PREF_ENCRYPTION_KEY, KEY_NOT_FOUND);
+        if (currentKey.equals(KEY_NOT_FOUND)) {
+            SharedPreferences.Editor editor = aware_preferences.edit();
+            editor.putString(PREF_ENCRYPTION_KEY, awareContext.getResources().getString(R.string.default_encryption_key));
+            editor.commit();
+        }
+    }
+
     @Override
     public IBinder onBind(Intent intent) {
         return serviceBinder;
@@ -217,6 +267,7 @@ public class Aware extends Service {
     public void onCreate() {
         super.onCreate();
 
+        //TODO: Ask for key change at startup
         awareContext = getApplicationContext();
         alarmManager = (AlarmManager) getSystemService(ALARM_SERVICE);
 
@@ -231,6 +282,7 @@ public class Aware extends Service {
         filter.addAction(Aware.ACTION_AWARE_REFRESH);
         filter.addAction(Aware.ACTION_AWARE_SYNC_DATA);
         filter.addAction(Aware.ACTION_QUIT_STUDY);
+        filter.addAction(Aware.ACTION_AWARE_CHANGE_ENCRYPTION_KEY);
 
         awareContext.registerReceiver(aware_BR, filter);
 
@@ -240,6 +292,7 @@ public class Aware extends Service {
         }
 
         aware_preferences = getSharedPreferences("aware_core_prefs", MODE_PRIVATE);
+        loadDefaultEncryptionKey();
         if (aware_preferences.getAll().isEmpty()) {
             SharedPreferences.Editor editor = aware_preferences.edit();
             editor.putInt(PREF_FREQUENCY_WATCHDOG, CONST_FREQUENCY_WATCHDOG);
@@ -775,6 +828,7 @@ public class Aware extends Service {
         global_settings.add(Aware.STUDY_START);
         global_settings.add(Aware_Preferences.DEVICE_ID);
         global_settings.add(Aware_Preferences.DEVICE_LABEL);
+        global_settings.add(Aware_Preferences.DEVICE_ENCRYPTION_KEY);
         global_settings.add(Aware_Preferences.STATUS_WEBSERVICE);
         global_settings.add(Aware_Preferences.FREQUENCY_WEBSERVICE);
         global_settings.add(Aware_Preferences.WEBSERVICE_WIFI_ONLY);
@@ -1270,6 +1324,7 @@ public class Aware extends Service {
      * - ACTION_AWARE_CLEAR_DATA = clears local device's AWARE modules databases.
      * - ACTION_AWARE_REFRESH - apply changes to the configuration.
      * - {}@link WifiManager#WIFI_STATE_CHANGED_ACTION} - when Wi-Fi is available to sync
+     * - ACTION_AWARE_CHANGE_ENCRYPTION_KEY - changes the encryption key for all internal databases (no plugins).
      *
      * @author denzil
      */
@@ -1313,6 +1368,23 @@ public class Aware extends Service {
             if (intent.getAction().equals(Aware.ACTION_AWARE_REFRESH)) {
                 Intent refresh = new Intent(context, com.aware.Aware.class);
                 context.startService(refresh);
+            }
+
+            if (intent.getAction().equals(Aware.ACTION_AWARE_CHANGE_ENCRYPTION_KEY) && !Aware.isStudy(awareContext)){//&& Aware.getSetting(context, Aware_Preferences.STATUS_WEBSERVICE).equals("false")) {
+
+                Log.d(TAG, "Changing Key");
+
+                //Re-keying all databases
+                String newKey = intent.getStringExtra(DatabaseHelper.INTENT_REKEY_NEW_KEY);
+                String currentKey = aware_preferences.getString(PREF_ENCRYPTION_KEY, KEY_NOT_FOUND);
+                if (!currentKey.equals(KEY_NOT_FOUND)) {
+                    SharedPreferences.Editor editor = aware_preferences.edit();
+                    editor.putString(PREF_ENCRYPTION_KEY, newKey);
+                    editor.commit();
+                    changeSensorsDBKey(newKey);
+                }
+                else if (Aware.DEBUG) Log.w(TAG, "Current encryption key not found in Preferences");
+
             }
         }
     }
@@ -1941,5 +2013,39 @@ public class Aware extends Service {
     public static void stopMQTT(Context context) {
         awareContext = context;
         if (mqttSrv != null) awareContext.stopService(mqttSrv);
+    }
+
+    /**
+     * Send intents to each internal sensor data provider to change its DB key
+     */
+    public static void changeSensorsDBKey(String newKey) {
+        awareContext.getContentResolver().call(Aware_Settings.CONTENT_URI, Aware.METHOD_REKEY_DB, newKey, null);
+        awareContext.getContentResolver().call(ESM_Provider.ESM_Data.CONTENT_URI, Aware.METHOD_REKEY_DB, newKey, null);
+        awareContext.getContentResolver().call(Applications_Provider.Applications_Notifications.CONTENT_URI, Aware.METHOD_REKEY_DB, newKey, null);
+        awareContext.getContentResolver().call(Accelerometer_Provider.Accelerometer_Data.CONTENT_URI, Aware.METHOD_REKEY_DB, newKey, null);
+        awareContext.getContentResolver().call(Installations_Provider.Installations_Data.CONTENT_URI, Aware.METHOD_REKEY_DB, newKey, null);
+        awareContext.getContentResolver().call(Locations_Provider.Locations_Data.CONTENT_URI, Aware.METHOD_REKEY_DB, newKey, null);
+        awareContext.getContentResolver().call(Bluetooth_Provider.Bluetooth_Data.CONTENT_URI, Aware.METHOD_REKEY_DB, newKey, null);
+        awareContext.getContentResolver().call(Screen_Provider.Screen_Data.CONTENT_URI, Aware.METHOD_REKEY_DB, newKey, null);
+        awareContext.getContentResolver().call(Battery_Provider.Battery_Data.CONTENT_URI, Aware.METHOD_REKEY_DB, newKey, null);
+        awareContext.getContentResolver().call(Network_Provider.Network_Data.CONTENT_URI, Aware.METHOD_REKEY_DB, newKey, null);
+        awareContext.getContentResolver().call(Communication_Provider.Calls_Data.CONTENT_URI, Aware.METHOD_REKEY_DB, newKey, null);
+        awareContext.getContentResolver().call(Processor_Provider.Processor_Data.CONTENT_URI, Aware.METHOD_REKEY_DB, newKey, null);
+        awareContext.getContentResolver().call(TimeZone_Provider.TimeZone_Data.CONTENT_URI, Aware.METHOD_REKEY_DB, newKey, null);
+        awareContext.getContentResolver().call(Mqtt_Provider.Mqtt_Messages.CONTENT_URI, Aware.METHOD_REKEY_DB, newKey, null);
+        awareContext.getContentResolver().call(Gyroscope_Provider.Gyroscope_Data.CONTENT_URI, Aware.METHOD_REKEY_DB, newKey, null);
+        awareContext.getContentResolver().call(WiFi_Provider.WiFi_Data.CONTENT_URI, Aware.METHOD_REKEY_DB, newKey, null);
+        awareContext.getContentResolver().call(Telephony_Provider.Telephony_Data.CONTENT_URI, Aware.METHOD_REKEY_DB, newKey, null);
+        awareContext.getContentResolver().call(Rotation_Provider.Rotation_Data.CONTENT_URI, Aware.METHOD_REKEY_DB, newKey, null);
+        awareContext.getContentResolver().call(Light_Provider.Light_Data.CONTENT_URI, Aware.METHOD_REKEY_DB, newKey, null);
+        awareContext.getContentResolver().call(Proximity_Provider.Proximity_Data.CONTENT_URI, Aware.METHOD_REKEY_DB, newKey, null);
+        awareContext.getContentResolver().call(Magnetometer_Provider.Magnetometer_Data.CONTENT_URI, Aware.METHOD_REKEY_DB, newKey, null);
+        awareContext.getContentResolver().call(Barometer_Provider.Barometer_Data.CONTENT_URI, Aware.METHOD_REKEY_DB, newKey, null);
+        awareContext.getContentResolver().call(Gravity_Provider.Gravity_Data.CONTENT_URI, Aware.METHOD_REKEY_DB, newKey, null);
+        awareContext.getContentResolver().call(Linear_Accelerometer_Provider.Linear_Accelerometer_Data.CONTENT_URI, Aware.METHOD_REKEY_DB, newKey, null);
+        awareContext.getContentResolver().call(Temperature_Provider.Temperature_Data.CONTENT_URI, Aware.METHOD_REKEY_DB, newKey, null);
+        awareContext.getContentResolver().call(Keyboard_Provider.Keyboard_Data.CONTENT_URI, Aware.METHOD_REKEY_DB, newKey, null);
+        awareContext.getContentResolver().call(Scheduler_Provider.Scheduler_Data.CONTENT_URI, Aware.METHOD_REKEY_DB, newKey, null);
+
     }
 }

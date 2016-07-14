@@ -39,6 +39,11 @@ public class Aware_Preferences {
     public static final String DEVICE_LABEL = "device_label";
 
     /**
+     * Password to encrypt databases stored on the phone's storage
+     */
+    public static final String DEVICE_ENCRYPTION_KEY = "device_encryption_key";
+
+    /**
      * Automatically check for updates on the client
      */
     public static final String AWARE_VERSION = "aware_version";

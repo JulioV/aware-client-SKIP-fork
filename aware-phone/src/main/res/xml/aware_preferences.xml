@@ -47,6 +47,11 @@
             android:persistent="true"
             android:summary=""
             android:title="@string/aware_device_label" />
+        <Preference
+            android:key="device_encryption_key"
+            android:persistent="true"
+            android:summary="Change encryption key"
+            android:title="@string/aware_device_encryption_key" />
     </PreferenceCategory>
     <PreferenceCategory
         android:key="sensors"

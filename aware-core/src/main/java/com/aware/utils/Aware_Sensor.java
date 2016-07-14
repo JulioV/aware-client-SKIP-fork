@@ -97,6 +97,7 @@ public class Aware_Sensor extends Service {
         filter.addAction(Aware.ACTION_AWARE_CLEAR_DATA);
         filter.addAction(Aware.ACTION_AWARE_STOP_SENSORS);
         filter.addAction(Aware.ACTION_AWARE_SPACE_MAINTENANCE);
+        filter.addAction(Aware.ACTION_AWARE_CHANGE_ENCRYPTION_KEY);
         registerReceiver(contextBroadcaster, filter);
 
         REQUIRED_PERMISSIONS.add(Manifest.permission.WRITE_EXTERNAL_STORAGE);

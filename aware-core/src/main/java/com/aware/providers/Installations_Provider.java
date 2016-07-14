@@ -11,12 +11,14 @@ import android.database.SQLException;
 import net.sqlcipher.database.SQLiteDatabase;
 import net.sqlcipher.database.SQLiteQueryBuilder;
 import android.net.Uri;
+import android.os.Bundle;
 import android.os.Environment;
 import android.provider.BaseColumns;
 import android.util.Log;
 
 import com.aware.Aware;
 import com.aware.BuildConfig;
+import com.aware.R;
 import com.aware.utils.DatabaseHelper;
 
 import java.io.File;
@@ -86,7 +88,7 @@ public class Installations_Provider extends ContentProvider {
 
 	private boolean initializeDB() {
         if (databaseHelper == null) {
-            databaseHelper = new DatabaseHelper( getContext(), DATABASE_NAME, null, DATABASE_VERSION, DATABASE_TABLES, TABLES_FIELDS );
+			databaseHelper = new DatabaseHelper( getContext(), DATABASE_NAME, this.encryption_key, null, DATABASE_VERSION, DATABASE_TABLES, TABLES_FIELDS );
         }
         if( databaseHelper != null && ( database == null || ! database.isOpen() )) {
             database = databaseHelper.getWritableDatabase();
@@ -182,6 +184,7 @@ public class Installations_Provider extends ContentProvider {
 
 	@Override
 	public boolean onCreate() {
+		this.encryption_key = getContext().getResources().getString(R.string.default_encryption_key);
 	    AUTHORITY = getContext().getPackageName() + ".provider.installations";
 
 	    sUriMatcher = new UriMatcher(UriMatcher.NO_MATCH);
@@ -265,5 +268,19 @@ public class Installations_Provider extends ContentProvider {
 		}
 		getContext().getContentResolver().notifyChange(uri, null);
 		return count;
+	}
+
+	private String encryption_key;
+	@Override
+	public Bundle call(String method, String arg, Bundle extras){
+		if(Aware.METHOD_REKEY_DB.equals(method) && arg != null){
+			String newKey = arg;
+			if(databaseHelper != null){
+				this.databaseHelper.rekeyDB(newKey);
+				database = databaseHelper.getWritableDatabase();
+			}
+			this.encryption_key = newKey;
+		}
+		return null;
 	}
 }

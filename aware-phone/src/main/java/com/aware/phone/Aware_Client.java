@@ -2,10 +2,8 @@
 package com.aware.phone;
 
 import android.Manifest;
-import android.app.Activity;
 import android.app.AlertDialog;
 import android.app.Dialog;
-import android.app.TaskStackBuilder;
 import android.bluetooth.BluetoothAdapter;
 import android.content.Context;
 import android.content.DialogInterface;
@@ -25,16 +23,14 @@ import android.preference.EditTextPreference;
 import android.preference.ListPreference;
 import android.preference.Preference;
 import android.preference.PreferenceActivity;
-import android.preference.PreferenceFragment;
 import android.preference.PreferenceManager;
 import android.preference.PreferenceScreen;
-import android.support.annotation.Nullable;
 import android.support.v4.content.ContextCompat;
-import android.util.AttributeSet;
-import android.util.Log;
+import android.text.method.PasswordTransformationMethod;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.Toast;
 
@@ -43,6 +39,7 @@ import com.aware.Aware;
 import com.aware.Aware_Preferences;
 import com.aware.phone.ui.Aware_Activity;
 import com.aware.ui.PermissionsHandler;
+import com.aware.utils.DatabaseHelper;
 import com.aware.utils.PluginsManager;
 
 import java.util.ArrayList;
@@ -1962,5 +1959,84 @@ public class Aware_Client extends Aware_Activity {
             }
         });
         if (Aware.isStudy(awareContext)) device_label.setSelectable(false);
+
+        final Preference device_encryption_key = findPreference(Aware_Preferences.DEVICE_ENCRYPTION_KEY);
+        device_encryption_key.setOnPreferenceClickListener(new Preference.OnPreferenceClickListener() {
+            @Override
+            public boolean onPreferenceClick(Preference preference) {
+                AlertDialog.Builder builder = new AlertDialog.Builder(Aware_Client.this);
+                builder.setTitle("Change password for local encryption");
+                final EditText oldPass = new EditText(Aware_Client.this);
+                final EditText newPass = new EditText(Aware_Client.this);
+                final EditText confirmPass = new EditText(Aware_Client.this);
+
+
+                oldPass.setTransformationMethod(PasswordTransformationMethod.getInstance());
+                newPass.setTransformationMethod(PasswordTransformationMethod.getInstance());
+                confirmPass.setTransformationMethod(PasswordTransformationMethod.getInstance());
+
+                oldPass.setHint("Old Password");
+                newPass.setHint("New Password");
+                confirmPass.setHint("Confirm Password");
+                LinearLayout layout = new LinearLayout(Aware_Client.this);
+                layout.setOrientation(LinearLayout.VERTICAL);
+
+                layout.addView(oldPass);
+
+                layout.addView(newPass);
+                layout.addView(confirmPass);
+                builder.setView(layout);
+                builder.setPositiveButton(R.string.dialog_change,
+                        new DialogInterface.OnClickListener() {
+                            public void onClick(DialogInterface dialog, int id) {
+
+                                String oldTypedKey = oldPass.getText().toString();
+                                String newKey = newPass.getText().toString();
+                                String confirmKey = confirmPass.getText().toString();
+
+                                String dialogNewKeyMismatch = awareContext.getResources().getString(R.string.dialog_new_key_mismatch);
+                                String dialogOldKeyMismatch = awareContext.getResources().getString(R.string.dialog_old_key_mismatch);
+                                String dialogShortKey = awareContext.getResources().getString(R.string.dialog_short_key);
+
+
+                                if(!confirmKey.equals(newKey))
+                                    Toast.makeText(awareContext, dialogNewKeyMismatch, Toast.LENGTH_SHORT).show();
+                                else if(newKey.length() < 5)
+                                    Toast.makeText(awareContext, dialogShortKey, Toast.LENGTH_SHORT).show();
+                                else if(!typedKeyEqualsToCurrentKey(oldTypedKey))
+                                    Toast.makeText(awareContext, dialogOldKeyMismatch, Toast.LENGTH_SHORT).show();
+                                else{ //Change currentKey (oldTypedKey) for newKey
+                                    Intent applyNew = new Intent(Aware.ACTION_AWARE_CHANGE_ENCRYPTION_KEY);
+                                    applyNew.putExtra(DatabaseHelper.INTENT_REKEY_NEW_KEY, newKey);
+                                    sendBroadcast(applyNew);
+                                    dialog.cancel();
+                                }
+                            }
+                        });
+                builder.setNegativeButton(R.string.dialog_cancel,
+                        new DialogInterface.OnClickListener() {
+                            public void onClick(DialogInterface dialog, int id) {
+                                dialog.cancel();
+                            }
+                        });
+
+                AlertDialog changePassword = builder.create();
+                changePassword.show();
+                return true;
+            }
+        });
+        if (Aware.isStudy(awareContext)) device_encryption_key.setSelectable(false);
+    }
+
+    /**
+     * Check if typed key is equal to current key
+     */
+
+    public boolean typedKeyEqualsToCurrentKey(String typedKey){
+        SharedPreferences aware_preferences = getSharedPreferences("aware_core_prefs", MODE_PRIVATE);
+        String currentKey = aware_preferences.getString(Aware.PREF_ENCRYPTION_KEY, Aware.KEY_NOT_FOUND);
+        if(!currentKey.equals(Aware.KEY_NOT_FOUND))
+            return typedKey.equals(currentKey);
+        return false;
     }
 }

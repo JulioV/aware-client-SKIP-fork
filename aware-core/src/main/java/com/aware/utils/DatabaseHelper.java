@@ -6,11 +6,13 @@ import android.database.Cursor;
 import android.database.SQLException;
 import net.sqlcipher.database.SQLiteDatabase;
 import net.sqlcipher.database.SQLiteDatabase.CursorFactory;
+import net.sqlcipher.database.SQLiteException;
 import net.sqlcipher.database.SQLiteOpenHelper;
 import android.os.Environment;
 import android.text.TextUtils;
 import android.util.Log;
 
+import com.aware.Aware;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -24,7 +26,6 @@ import java.util.List;
 /**
  * ContentProvider database helper<br/>
  * This class is responsible to make sure we have the most up-to-date database structures from plugins and sensors
- * @author denzil
  *
  */
 public class DatabaseHelper extends SQLiteOpenHelper {
@@ -37,15 +38,20 @@ public class DatabaseHelper extends SQLiteOpenHelper {
 	private final String[] table_fields;
 	private final int new_version;
     private HashMap<String, String> renamed_columns = new HashMap<>();
-	
-	private SQLiteDatabase database;
-	private Context mContext;
 
-	public DatabaseHelper(Context context, String database_name, CursorFactory cursor_factory, int database_version, String[] database_tables, String[] table_fields) {
+    private SQLiteDatabase database;
+    private Context mContext;
+
+    private String encryption_key;
+	public static final String INTENT_REKEY_NEW_KEY = "intent_rekey_new_key"; //String to pass the new key in the rekey intent
+
+    //TODO:Add new password when a database helper is created
+    public DatabaseHelper(Context context, String database_name, String encryption_key, CursorFactory cursor_factory, int database_version, String[] database_tables, String[] table_fields) {
         super(context, database_name, cursor_factory, database_version);
 
-		SQLiteDatabase.loadLibs(context);
-		this.database_name = database_name;
+        SQLiteDatabase.loadLibs(context);
+        this.encryption_key = encryption_key;//context.getResources().getString(R.string.default_encryption_key);
+        this.database_name = database_name;
         this.database_tables = database_tables;
         this.table_fields = table_fields;
         this.new_version = database_version;
@@ -61,7 +67,14 @@ public class DatabaseHelper extends SQLiteOpenHelper {
 //        if( ! aware_folder.exists() ) aware_folder.mkdirs();
     }
 
-    public void setRenamedColumns( HashMap<String, String> renamed ) {
+    public DatabaseHelper(Context context, String database_name, CursorFactory cursor_factory, int database_version, String[] database_tables, String[] table_fields) {
+        super(context, database_name, cursor_factory, database_version);
+        //This constructor is still here for compatibility with the resetDB methods of sensors. e.g. accelerometer
+        throw new UnsupportedOperationException("Creating a DatabaseHelper object without an encryption key is not allowed. Please used the alternative constructor method");
+
+    }
+
+    public void setRenamedColumns(HashMap<String, String> renamed) {
         renamed_columns = renamed;
     }
 
@@ -76,39 +89,40 @@ public class DatabaseHelper extends SQLiteOpenHelper {
     
     @Override
     public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
-    	if(DEBUG) Log.w(TAG, "Upgrading database: " + db.getPath());
+        if (DEBUG) Log.w(TAG, "Upgrading database: " + db.getPath());
 
-		db.beginTransaction();
-		for (int i=0; i < database_tables.length;i++) {
+        db.beginTransaction();
+        for (int i = 0; i < database_tables.length; i++) {
 
-			//Create a new table if doesn't exist
-			db.execSQL("CREATE TABLE IF NOT EXISTS " + database_tables[i] + " (" + table_fields[i] + ");");
+            //Create a new table if doesn't exist
+            db.execSQL("CREATE TABLE IF NOT EXISTS " + database_tables[i] + " (" + table_fields[i] + ");");
 
-			//Modify existing tables if there are changes, while retaining old data. This also works for brand new tables, where nothing is changed.
-			List<String> columns = getColumns(db, database_tables[i]);
-			db.execSQL("ALTER TABLE " + database_tables[i] + " RENAME TO temp_" + database_tables[i] + ";");
-			db.execSQL("CREATE TABLE " + database_tables[i] + " (" + table_fields[i] + ");");
-			columns.retainAll(getColumns(db, database_tables[i]));
+            //Modify existing tables if there are changes, while retaining old data. This also works for brand new tables, where nothing is changed.
+            List<String> columns = getColumns(db, database_tables[i]);
+            db.execSQL("ALTER TABLE " + database_tables[i] + " RENAME TO temp_" + database_tables[i] + ";");
+            db.execSQL("CREATE TABLE " + database_tables[i] + " (" + table_fields[i] + ");");
+            columns.retainAll(getColumns(db, database_tables[i]));
 
-			String cols = TextUtils.join(",", columns);
+            String cols = TextUtils.join(",", columns);
             String new_cols = cols;
 
-            if( renamed_columns.size() > 0 ) {
-                for( String key : renamed_columns.keySet() ) {
-                    if( DEBUG ) Log.d(TAG, "Renaming: " + key + " -> " + renamed_columns.get(key));
-                    new_cols = new_cols.replace( key, renamed_columns.get(key) );
+            if (renamed_columns.size() > 0) {
+                for (String key : renamed_columns.keySet()) {
+                    if (DEBUG) Log.d(TAG, "Renaming: " + key + " -> " + renamed_columns.get(key));
+                    new_cols = new_cols.replace(key, renamed_columns.get(key));
                 }
             }
 
             //restore old data back
-            if( DEBUG ) Log.d(TAG, String.format("INSERT INTO %s (%s) SELECT %s from temp_%s;", database_tables[i], new_cols, cols, database_tables[i]));
+            if (DEBUG)
+                Log.d(TAG, String.format("INSERT INTO %s (%s) SELECT %s from temp_%s;", database_tables[i], new_cols, cols, database_tables[i]));
 
             db.execSQL(String.format("INSERT INTO %s (%s) SELECT %s from temp_%s;", database_tables[i], new_cols, cols, database_tables[i]));
             db.execSQL("DROP TABLE temp_" + database_tables[i] + ";");
-		}
-		db.setVersion(new_version);
-		db.setTransactionSuccessful();
-		db.endTransaction();
+        }
+        db.setVersion(new_version);
+        db.setTransactionSuccessful();
+        db.endTransaction();
     }
 
 	/**
@@ -174,7 +188,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         File database_file = new File( Environment.getExternalStoragePublicDirectory("AWARE").toString(), database_name );
 //    	File database_file = new File( mContext.getExternalFilesDir(null) + "/Documents/AWARE/" , database_name );
     	try {
-			SQLiteDatabase current_database = SQLiteDatabase.openOrCreateDatabase(database_file.getPath(), "passwordChangeMe",null,null);
+			SQLiteDatabase current_database = SQLiteDatabase.openOrCreateDatabase(database_file.getPath(), this.encryption_key,null,null);
     	    int current_version = current_database.getVersion();
 
 			if( current_version != new_version ) {
@@ -220,5 +234,25 @@ public class DatabaseHelper extends SQLiteOpenHelper {
 		} catch (SQLException e ) {
 			return null;
 		}
+    }
+
+    public boolean rekeyDB(String newKey) {
+        try {
+            String rekeyCommand = String.format("PRAGMA rekey  = \"%s\";", newKey);
+            //TODO: There might be a possible bug here when bulkInsert from a load intensive sensor is done at the same time as rekey
+            database.beginTransaction();
+            database.rawExecSQL(rekeyCommand);
+            database.setTransactionSuccessful();
+            database.endTransaction();
+            this.encryption_key = newKey;
+            if (Aware.DEBUG)
+                Log.d(Aware.TAG, String.format("Key change for database: %s", database_name));
+            return true;
+        } catch (SQLiteException e) {
+            if (Aware.DEBUG)
+                Log.d(Aware.TAG, String.format("Exception while changing key for database: %s. Message: %s", database_name, e.getMessage()));
+            return false;
+
+        }
     }
 }
