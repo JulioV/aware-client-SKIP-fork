@@ -7,8 +7,8 @@ import android.content.ContentValues;
 import android.content.UriMatcher;
 import android.database.Cursor;
 import android.database.SQLException;
-import android.database.sqlite.SQLiteDatabase;
-import android.database.sqlite.SQLiteQueryBuilder;
+import net.sqlcipher.database.SQLiteDatabase;
+import net.sqlcipher.database.SQLiteQueryBuilder;
 import android.net.Uri;
 import android.os.Environment;
 import android.provider.BaseColumns;
@@ -29,7 +29,7 @@ import java.util.HashMap;
  */
 public class Aware_Provider extends ContentProvider {
 
-	public static final int DATABASE_VERSION = 8;
+	public static final int DATABASE_VERSION = 9;
 
 	/**
 	 * AWARE framework content authority
@@ -141,7 +141,7 @@ public class Aware_Provider extends ContentProvider {
 			+ Aware_Device.RELEASE_TYPE + " text default '',"
 			+ Aware_Device.SDK + " integer default 0,"
 			+ Aware_Device.LABEL + " text default '',"
-			+ "UNIQUE (" + Aware_Device.DEVICE_ID + "," + Aware_Device.TIMESTAMP + ")",
+			+ "UNIQUE(" + Aware_Device.DEVICE_ID + ")",
 
 			// Settings
 			Aware_Settings.SETTING_ID + " integer primary key autoincrement,"

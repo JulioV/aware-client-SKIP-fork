@@ -8,8 +8,8 @@ import android.content.Context;
 import android.content.UriMatcher;
 import android.database.Cursor;
 import android.database.SQLException;
-import android.database.sqlite.SQLiteDatabase;
-import android.database.sqlite.SQLiteQueryBuilder;
+import net.sqlcipher.database.SQLiteDatabase;
+import net.sqlcipher.database.SQLiteQueryBuilder;
 import android.net.Uri;
 import android.os.Environment;
 import android.provider.BaseColumns;
@@ -32,7 +32,7 @@ import java.util.HashMap;
  */
 public class Proximity_Provider extends ContentProvider {
 
-	public static final int DATABASE_VERSION = 2;
+	public static final int DATABASE_VERSION = 3;
 
 	/**
 	 * Authority of content provider
@@ -113,17 +113,14 @@ public class Proximity_Provider extends ContentProvider {
 					+ Proximity_Sensor.TYPE + " text default '',"
 					+ Proximity_Sensor.VENDOR + " text default '',"
 					+ Proximity_Sensor.VERSION + " text default '',"
-					+ "UNIQUE(" + Proximity_Sensor.TIMESTAMP + ","
-					+ Proximity_Sensor.DEVICE_ID + ")",
+					+ "UNIQUE(" + Proximity_Sensor.DEVICE_ID + ")",
 			// sensor data
 			Proximity_Data._ID + " integer primary key autoincrement,"
 					+ Proximity_Data.TIMESTAMP + " real default 0,"
 					+ Proximity_Data.DEVICE_ID + " text default '',"
 					+ Proximity_Data.PROXIMITY + " real default 0,"
 					+ Proximity_Data.ACCURACY + " integer default 0,"
-					+ Proximity_Data.LABEL + " text default ''," + "UNIQUE("
-					+ Proximity_Data.TIMESTAMP + "," + Proximity_Data.DEVICE_ID
-					+ ")" };
+					+ Proximity_Data.LABEL + " text default ''" };
 
 	private static UriMatcher sUriMatcher = null;
 	private static HashMap<String, String> sensorMap = null;

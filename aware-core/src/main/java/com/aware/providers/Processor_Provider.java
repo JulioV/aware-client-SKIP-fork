@@ -8,8 +8,8 @@ import android.content.Context;
 import android.content.UriMatcher;
 import android.database.Cursor;
 import android.database.SQLException;
-import android.database.sqlite.SQLiteDatabase;
-import android.database.sqlite.SQLiteQueryBuilder;
+import net.sqlcipher.database.SQLiteDatabase;
+import net.sqlcipher.database.SQLiteQueryBuilder;
 import android.net.Uri;
 import android.os.Environment;
 import android.provider.BaseColumns;
@@ -30,7 +30,7 @@ import java.util.HashMap;
  */
 public class Processor_Provider extends ContentProvider {
 
-	public static final int DATABASE_VERSION = 3;
+	public static final int DATABASE_VERSION = 4;
 
 	/**
 	 * Authority of Processor content provider
@@ -80,8 +80,7 @@ public class Processor_Provider extends ContentProvider {
 			+ Processor_Data.LAST_IDLE + " real default 0,"
 			+ Processor_Data.USER_LOAD + " real default 0,"
 			+ Processor_Data.SYSTEM_LOAD + " real default 0,"
-			+ Processor_Data.IDLE_LOAD + " real default 0," + "UNIQUE("
-			+ Processor_Data.TIMESTAMP + "," + Processor_Data.DEVICE_ID + ")" };
+			+ Processor_Data.IDLE_LOAD + " real default 0" };
 
 	private static UriMatcher sUriMatcher = null;
 	private static HashMap<String, String> processorProjectionMap = null;

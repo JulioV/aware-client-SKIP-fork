@@ -8,8 +8,8 @@ import android.content.Context;
 import android.content.UriMatcher;
 import android.database.Cursor;
 import android.database.SQLException;
-import android.database.sqlite.SQLiteDatabase;
-import android.database.sqlite.SQLiteQueryBuilder;
+import net.sqlcipher.database.SQLiteDatabase;
+import net.sqlcipher.database.SQLiteQueryBuilder;
 import android.net.Uri;
 import android.os.Environment;
 import android.provider.BaseColumns;
@@ -31,7 +31,7 @@ import java.util.HashMap;
  */
 public class TimeZone_Provider extends ContentProvider {
 
-	public static final int DATABASE_VERSION = 6;
+	public static final int DATABASE_VERSION = 7;
 
 	/**
 	 * Provider authority: com.aware.TimeZoneProvider
@@ -71,8 +71,7 @@ public class TimeZone_Provider extends ContentProvider {
 			TimeZone_Data._ID + " integer primary key autoincrement,"
 			+ TimeZone_Data.TIMESTAMP + " real default 0,"
 			+ TimeZone_Data.DEVICE_ID + " text default '',"
-			+ TimeZone_Data.TIMEZONE + " text default ''," 
-			+ "UNIQUE(" + TimeZone_Data.TIMESTAMP + "," + TimeZone_Data.DEVICE_ID + ")" };
+			+ TimeZone_Data.TIMEZONE + " text default ''" };
 
 	private static UriMatcher sUriMatcher = null;
 	private static HashMap<String, String> timeZoneMap = null;

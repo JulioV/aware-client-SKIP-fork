@@ -8,8 +8,8 @@ import android.content.Context;
 import android.content.UriMatcher;
 import android.database.Cursor;
 import android.database.SQLException;
-import android.database.sqlite.SQLiteDatabase;
-import android.database.sqlite.SQLiteQueryBuilder;
+import net.sqlcipher.database.SQLiteDatabase;
+import net.sqlcipher.database.SQLiteQueryBuilder;
 import android.net.Uri;
 import android.os.Environment;
 import android.provider.BaseColumns;
@@ -32,7 +32,7 @@ import java.util.HashMap;
  */
 public class Light_Provider extends ContentProvider {
 
-	public static final int DATABASE_VERSION = 2;
+	public static final int DATABASE_VERSION = 3;
 
 	/**
 	 * Authority of content provider
@@ -110,17 +110,15 @@ public class Light_Provider extends ContentProvider {
 					+ Light_Sensor.RESOLUTION + " real default 0,"
 					+ Light_Sensor.TYPE + " text default '',"
 					+ Light_Sensor.VENDOR + " text default '',"
-					+ Light_Sensor.VERSION + " text default ''," + "UNIQUE("
-					+ Light_Sensor.TIMESTAMP + "," + Light_Sensor.DEVICE_ID
-					+ ")",
+					+ Light_Sensor.VERSION + " text default '',"
+					+ "UNIQUE(" + Light_Sensor.DEVICE_ID + ")",
 			// sensor data
 			Light_Data._ID + " integer primary key autoincrement,"
 					+ Light_Data.TIMESTAMP + " real default 0,"
 					+ Light_Data.DEVICE_ID + " text default '',"
 					+ Light_Data.LIGHT_LUX + " real default 0,"
 					+ Light_Data.ACCURACY + " integer default 0,"
-					+ Light_Data.LABEL + " text default ''," + "UNIQUE("
-					+ Light_Data.TIMESTAMP + "," + Light_Data.DEVICE_ID + ")" };
+					+ Light_Data.LABEL + " text default ''" };
 
 	private static UriMatcher sUriMatcher = null;
 	private static HashMap<String, String> sensorMap = null;

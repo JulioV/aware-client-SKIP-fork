@@ -2,6 +2,12 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.aware">
 
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+    <uses-permission android:name="android.permission.BLUETOOTH" />
+    <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" />
+    <uses-permission android:name="android.permission.CHANGE_WIFI_STATE" />
+    <uses-permission android:name="android.permission.READ_CALL_LOG" />
     <uses-permission android:name="com.aware.READ_CONTEXT_DATA" />
     <uses-permission android:name="com.aware.WRITE_CONTEXT_DATA" />
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
@@ -42,10 +48,6 @@
             android:exported="true" />
         <service
             android:name="com.aware.utils.SSLManager"
-            android:exported="true" />
-
-        <service
-            android:name="com.aware.utils.PluginsManager"
             android:exported="true" />
 
         <service
@@ -95,7 +97,6 @@
         <service
             android:name="com.aware.Traffic"
             android:exported="true" />
-
         <service
             android:name="com.aware.Accelerometer"
             android:exported="true" />
@@ -155,7 +156,6 @@
                 <action android:name="ACTION_AWARE_WEBSERVICE_CLEAR_TABLE" />
             </intent-filter>
         </service>
-
         <service
             android:name="com.aware.utils.DownloadPluginService"
             android:exported="true" />
@@ -164,10 +164,6 @@
             android:exported="true" />
         <service
             android:name="com.aware.utils.Aware_TTS"
-            android:exported="true" />
-
-        <service
-            android:name="com.aware.Aware$DowloadUpdatedPlugins"
             android:exported="true" />
 
         <!-- BroadcastReceivers -->
@@ -179,20 +175,17 @@
                 <action android:name="ACTION_AWARE_TTS_SPEAK" />
             </intent-filter>
         </receiver>
-
         <receiver
             android:name="com.aware.Aware$Storage_Broadcaster"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MEDIA_MOUNTED" />
                 <action android:name="android.intent.action.MEDIA_UNMOUNTED" />
-
                 <data android:scheme="file" />
             </intent-filter>
         </receiver>
 
         <!-- Core providers -->
-
         <provider
             android:name="com.aware.providers.Scheduler_Provider"
             android:authorities="${applicationId}.provider.scheduler"

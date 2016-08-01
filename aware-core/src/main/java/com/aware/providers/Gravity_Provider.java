@@ -8,8 +8,8 @@ import android.content.Context;
 import android.content.UriMatcher;
 import android.database.Cursor;
 import android.database.SQLException;
-import android.database.sqlite.SQLiteDatabase;
-import android.database.sqlite.SQLiteQueryBuilder;
+import net.sqlcipher.database.SQLiteDatabase;
+import net.sqlcipher.database.SQLiteQueryBuilder;
 import android.net.Uri;
 import android.os.Environment;
 import android.provider.BaseColumns;
@@ -32,7 +32,7 @@ import java.util.HashMap;
  */
 public class Gravity_Provider extends ContentProvider {
 
-	private static final int DATABASE_VERSION = 2;
+	private static final int DATABASE_VERSION = 3;
 
 	/**
 	 * Authority of content provider
@@ -114,9 +114,8 @@ public class Gravity_Provider extends ContentProvider {
 					+ Gravity_Sensor.RESOLUTION + " real default 0,"
 					+ Gravity_Sensor.TYPE + " text default '',"
 					+ Gravity_Sensor.VENDOR + " text default '',"
-					+ Gravity_Sensor.VERSION + " text default ''," + "UNIQUE ("
-					+ Gravity_Sensor.TIMESTAMP + "," + Gravity_Sensor.DEVICE_ID
-					+ ")",
+					+ Gravity_Sensor.VERSION + " text default '',"
+					+ "UNIQUE(" + Gravity_Sensor.DEVICE_ID + ")",
 			// sensor data
 			Gravity_Data._ID + " integer primary key autoincrement,"
 					+ Gravity_Data.TIMESTAMP + " real default 0,"
@@ -125,9 +124,7 @@ public class Gravity_Provider extends ContentProvider {
 					+ Gravity_Data.VALUES_1 + " real default 0,"
 					+ Gravity_Data.VALUES_2 + " real default 0,"
 					+ Gravity_Data.ACCURACY + " integer default 0,"
-					+ Gravity_Data.LABEL + " text default ''," + "UNIQUE ("
-					+ Gravity_Data.TIMESTAMP + "," + Gravity_Data.DEVICE_ID
-					+ ")" };
+					+ Gravity_Data.LABEL + " text default ''" };
 
 	private static UriMatcher sUriMatcher = null;
 	private static HashMap<String, String> sensorDeviceMap = null;

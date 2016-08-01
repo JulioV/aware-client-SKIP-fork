@@ -136,8 +136,11 @@ public class Aware extends Service {
      */
     public static final String ACTION_QUIT_STUDY = "ACTION_QUIT_STUDY";
 
-    private static final String SCHEDULE_SPACE_MAINTENANCE = "schedule_aware_space_maintenance";
-    private static final String SCHEDULE_SYNC_DATA = "schedule_aware_sync_data";
+    /**
+     * Used on the scheduler class to define global schedules for AWARE, SYNC and SPACE MAINTENANCE actions
+     */
+    public static final String SCHEDULE_SPACE_MAINTENANCE = "schedule_aware_space_maintenance";
+    public static final String SCHEDULE_SYNC_DATA = "schedule_aware_sync_data";
 
     public static String STUDY_ID = "study_id";
     public static String STUDY_START = "study_start";
@@ -220,19 +223,22 @@ public class Aware extends Service {
         awareContext = getApplicationContext();
         alarmManager = (AlarmManager) getSystemService(ALARM_SERVICE);
 
-        IntentFilter filter = new IntentFilter();
-        filter.addAction(Intent.ACTION_MEDIA_MOUNTED);
-        filter.addAction(Intent.ACTION_MEDIA_UNMOUNTED);
-        filter.addDataScheme("file");
-        awareContext.registerReceiver(storage_BR, filter);
+        IntentFilter storage = new IntentFilter();
+        storage.addAction(Intent.ACTION_MEDIA_MOUNTED);
+        storage.addAction(Intent.ACTION_MEDIA_UNMOUNTED);
+        storage.addDataScheme("file");
+        awareContext.registerReceiver(storage_BR, storage);
 
-        filter = new IntentFilter();
-        filter.addAction(Aware.ACTION_AWARE_CLEAR_DATA);
-        filter.addAction(Aware.ACTION_AWARE_REFRESH);
-        filter.addAction(Aware.ACTION_AWARE_SYNC_DATA);
-        filter.addAction(Aware.ACTION_QUIT_STUDY);
+        IntentFilter awareactions = new IntentFilter();
+        awareactions.addAction(Aware.ACTION_AWARE_CLEAR_DATA);
+        awareactions.addAction(Aware.ACTION_AWARE_REFRESH);
+        awareactions.addAction(Aware.ACTION_AWARE_SYNC_DATA);
+        awareactions.addAction(Aware.ACTION_QUIT_STUDY);
+        awareContext.registerReceiver(aware_BR, awareactions);
 
-        awareContext.registerReceiver(aware_BR, filter);
+        IntentFilter boot = new IntentFilter();
+        boot.addAction(Intent.ACTION_BOOT_COMPLETED);
+        awareContext.registerReceiver(awareBoot, boot);
 
         if (!Environment.getExternalStorageState().equals(Environment.MEDIA_MOUNTED)) {
             stopSelf();
@@ -258,14 +264,14 @@ public class Aware extends Service {
 
         Map<String, ?> defaults = prefs.getAll();
         for (Map.Entry<String, ?> entry : defaults.entrySet()) {
-            if (Aware.getSetting(getApplicationContext(), entry.getKey(), "com.aware").length() == 0) {
-                Aware.setSetting(getApplicationContext(), entry.getKey(), entry.getValue(), "com.aware"); //default AWARE settings
+            if (Aware.getSetting(getApplicationContext(), entry.getKey(), "com.aware.phone").length() == 0) {
+                Aware.setSetting(getApplicationContext(), entry.getKey(), entry.getValue(), "com.aware.phone"); //default AWARE settings
             }
         }
 
         if (Aware.getSetting(getApplicationContext(), Aware_Preferences.DEVICE_ID).length() == 0) {
             UUID uuid = UUID.randomUUID();
-            Aware.setSetting(getApplicationContext(), Aware_Preferences.DEVICE_ID, uuid.toString(), "com.aware");
+            Aware.setSetting(getApplicationContext(), Aware_Preferences.DEVICE_ID, uuid.toString(), "com.aware.phone");
         }
 
         if (Aware.getSetting(getApplicationContext(), Aware_Preferences.WEBSERVICE_SERVER).length() == 0) {
@@ -359,6 +365,16 @@ public class Aware extends Service {
         return false;
     }
 
+    /**
+     * Identifies if the devices is enrolled in a study
+     *
+     * @param c
+     * @return
+     */
+    public static boolean isStudy(Context c) {
+        return (Aware.getSetting(c, Aware.STUDY_ID).length() > 0);
+    }
+
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         if (Environment.getExternalStorageState().equals(Environment.MEDIA_MOUNTED)) {
@@ -380,25 +396,41 @@ public class Aware extends Service {
                     Scheduler.removeSchedule(getApplicationContext(), SCHEDULE_SYNC_DATA);
 
                 } else {
-                    if (DEBUG) {
-                        Log.d(TAG, "Data sync every " + frequency_webservice + " minute(s)");
-                    }
+                    Scheduler.Schedule sync = Scheduler.getSchedule(this, SCHEDULE_SYNC_DATA);
+                    if (sync == null) { //Set the sync schedule for the first time
+                        try {
+                            Scheduler.Schedule schedule = new Scheduler.Schedule(SCHEDULE_SYNC_DATA)
+                                    .setActionType(Scheduler.ACTION_TYPE_BROADCAST)
+                                    .setActionClass(Aware.ACTION_AWARE_SYNC_DATA)
+                                    .setInterval(frequency_webservice);
 
-                    //Set sync schedule
-                    try {
-                        Scheduler.Schedule schedule = new Scheduler.Schedule(SCHEDULE_SYNC_DATA)
-                                .setActionType(Scheduler.ACTION_TYPE_BROADCAST)
-                                .setActionClass(Aware.ACTION_AWARE_SYNC_DATA)
-                                .addContext(Battery.ACTION_AWARE_BATTERY_CHARGING);
+                            Scheduler.saveSchedule(getApplicationContext(), schedule);
 
-                        int i = frequency_webservice;
-                        while (i<60) {
-                            schedule.addMinute(i); //add minute intervals
-                            i+=frequency_webservice;
+                            if (DEBUG) {
+                                Log.d(TAG, "Data sync every " + schedule.getInterval() + " minute(s)");
+                            }
+
+                        } catch (JSONException e) {
+                            e.printStackTrace();
                         }
-                        Scheduler.saveSchedule(getApplicationContext(), schedule);
-                    } catch (JSONException e) {
-                        e.printStackTrace();
+                    } else { //check the sync schedule for changes
+                        try {
+                            long interval = sync.getInterval();
+                            if (interval != frequency_webservice) {
+                                Scheduler.Schedule schedule = new Scheduler.Schedule(SCHEDULE_SYNC_DATA)
+                                        .setActionType(Scheduler.ACTION_TYPE_BROADCAST)
+                                        .setActionClass(Aware.ACTION_AWARE_SYNC_DATA)
+                                        .setInterval(frequency_webservice);
+
+                                Scheduler.saveSchedule(getApplicationContext(), schedule);
+
+                                if (DEBUG) {
+                                    Log.d(TAG, "Data sync at " + schedule.getInterval() + " minute(s)");
+                                }
+                            }
+                        } catch (JSONException e) {
+                            e.printStackTrace();
+                        }
                     }
                 }
             }
@@ -416,10 +448,10 @@ public class Aware extends Service {
                     } else {
                         Scheduler.Schedule cleanup = new Scheduler.Schedule(SCHEDULE_SPACE_MAINTENANCE);
                         switch (frequency_space_maintenance) {
-                            case 1: //weekly, by default every Friday
+                            case 1: //weekly, by default every Sunday
                                 cleanup.addWeekday("Sunday")
-                                .setActionType(Scheduler.ACTION_TYPE_BROADCAST)
-                                .setActionClass(Aware.ACTION_AWARE_SPACE_MAINTENANCE);
+                                        .setActionType(Scheduler.ACTION_TYPE_BROADCAST)
+                                        .setActionClass(Aware.ACTION_AWARE_SPACE_MAINTENANCE);
                                 break;
                             case 2: //monthly
                                 cleanup.addMonth("January")
@@ -434,8 +466,8 @@ public class Aware extends Service {
                                         .addMonth("October")
                                         .addMonth("November")
                                         .addMonth("December")
-                                .setActionType(Scheduler.ACTION_TYPE_BROADCAST)
-                                .setActionClass(Aware.ACTION_AWARE_SPACE_MAINTENANCE);
+                                        .setActionType(Scheduler.ACTION_TYPE_BROADCAST)
+                                        .setActionClass(Aware.ACTION_AWARE_SPACE_MAINTENANCE);
                                 break;
                             case 3: //daily
                                 cleanup.addWeekday("Monday")
@@ -445,13 +477,13 @@ public class Aware extends Service {
                                         .addWeekday("Friday")
                                         .addWeekday("Saturday")
                                         .addWeekday("Sunday")
-                                .setActionType(Scheduler.ACTION_TYPE_BROADCAST)
-                                .setActionClass(Aware.ACTION_AWARE_SPACE_MAINTENANCE);
+                                        .setActionType(Scheduler.ACTION_TYPE_BROADCAST)
+                                        .setActionClass(Aware.ACTION_AWARE_SPACE_MAINTENANCE);
                                 break;
                         }
                         Scheduler.saveSchedule(getApplicationContext(), cleanup);
                     }
-                } catch (JSONException e){
+                } catch (JSONException e) {
                     e.printStackTrace();
                 }
             }
@@ -651,7 +683,7 @@ public class Aware extends Service {
                 info.setBackgroundColor(Color.parseColor("#33B5E5"));
 
                 TextView plugin_header = new TextView(context);
-                plugin_header.setText(Aware.getPluginName(context, package_name));
+                plugin_header.setText(PluginsManager.getPluginName(context, package_name));
                 plugin_header.setTextColor(Color.WHITE);
                 plugin_header.setPadding(10, 0, 0, 0);
                 params.gravity = android.view.Gravity.CENTER_VERTICAL;
@@ -704,16 +736,6 @@ public class Aware extends Service {
         return null;
     }
 
-    public static String getPluginName(Context c, String package_name) {
-        String name = "";
-        Cursor plugin_name = c.getContentResolver().query(Aware_Plugins.CONTENT_URI, null, Aware_Plugins.PLUGIN_PACKAGE_NAME + " LIKE '" + package_name + "'", null, null, null);
-        if (plugin_name != null && plugin_name.moveToFirst()) {
-            name = plugin_name.getString(plugin_name.getColumnIndex(Aware_Plugins.PLUGIN_NAME));
-        }
-        if (plugin_name != null && !plugin_name.isClosed()) plugin_name.close();
-        return name;
-    }
-
     /**
      * Given a package and class name, check if the class exists or not.
      *
@@ -725,9 +747,9 @@ public class Aware extends Service {
         try {
             Context package_context = context.createPackageContext(package_name, Context.CONTEXT_IGNORE_SECURITY + Context.CONTEXT_INCLUDE_CODE);
             DexFile df = new DexFile(package_context.getPackageCodePath());
-            for(Enumeration<String> iter = df.entries(); iter.hasMoreElements();) {
+            for (Enumeration<String> iter = df.entries(); iter.hasMoreElements(); ) {
                 String className = iter.nextElement();
-                if( className.contains(class_name)) return true;
+                if (className.contains(class_name)) return true;
             }
             return false;
         } catch (IOException | NameNotFoundException e) {
@@ -772,7 +794,7 @@ public class Aware extends Service {
         is_global = global_settings.contains(key);
 
         String value = "";
-        Cursor qry = context.getContentResolver().query(Aware_Settings.CONTENT_URI, null, Aware_Settings.SETTING_KEY + " LIKE '" + key + "' AND " + Aware_Settings.SETTING_PACKAGE_NAME + " LIKE " + ((is_global) ? "'com.aware'" : "'" + context.getPackageName() + "'") + ((is_global) ? " OR " + Aware_Settings.SETTING_PACKAGE_NAME + " LIKE ''" : ""), null, null);
+        Cursor qry = context.getContentResolver().query(Aware_Settings.CONTENT_URI, null, Aware_Settings.SETTING_KEY + " LIKE '" + key + "' AND " + Aware_Settings.SETTING_PACKAGE_NAME + " LIKE " + ((is_global) ? "'com.aware.phone'" : "'" + context.getPackageName() + "'") + ((is_global) ? " OR " + Aware_Settings.SETTING_PACKAGE_NAME + " LIKE ''" : ""), null, null);
         if (qry != null && qry.moveToFirst()) {
             value = qry.getString(qry.getColumnIndex(Aware_Settings.SETTING_VALUE));
         }
@@ -845,12 +867,12 @@ public class Aware extends Service {
         setting.put(Aware_Settings.SETTING_KEY, key);
         setting.put(Aware_Settings.SETTING_VALUE, value.toString());
         if (is_global) {
-            setting.put(Aware_Settings.SETTING_PACKAGE_NAME, "com.aware");
+            setting.put(Aware_Settings.SETTING_PACKAGE_NAME, "com.aware.phone");
         } else {
             setting.put(Aware_Settings.SETTING_PACKAGE_NAME, context.getPackageName());
         }
 
-        Cursor qry = context.getContentResolver().query(Aware_Settings.CONTENT_URI, null, Aware_Settings.SETTING_KEY + " LIKE '" + key + "' AND " + Aware_Settings.SETTING_PACKAGE_NAME + " LIKE " + ((is_global) ? "'com.aware'" : "'" + context.getPackageName() + "'"), null, null);
+        Cursor qry = context.getContentResolver().query(Aware_Settings.CONTENT_URI, null, Aware_Settings.SETTING_KEY + " LIKE '" + key + "' AND " + Aware_Settings.SETTING_PACKAGE_NAME + " LIKE " + ((is_global) ? "'com.aware.phone'" : "'" + context.getPackageName() + "'"), null, null);
         //update
         if (qry != null && qry.moveToFirst()) {
             try {
@@ -963,7 +985,7 @@ public class Aware extends Service {
         for (int i = 0; i < sensors.length(); i++) {
             try {
                 JSONObject sensor_config = sensors.getJSONObject(i);
-                Aware.setSetting(c, sensor_config.getString("setting"), sensor_config.get("value"), "com.aware");
+                Aware.setSetting(c, sensor_config.getString("setting"), sensor_config.get("value"), "com.aware.phone");
             } catch (JSONException e) {
                 e.printStackTrace();
             }
@@ -1054,7 +1076,7 @@ public class Aware extends Service {
                 for (int i = 0; i < sensors.length(); i++) {
                     try {
                         JSONObject sensor_config = sensors.getJSONObject(i);
-                        Aware.setSetting(getApplicationContext(), sensor_config.getString("setting"), sensor_config.get("value"));
+                        Aware.setSetting(getApplicationContext(), sensor_config.getString("setting"), sensor_config.get("value"), "com.aware.phone");
                     } catch (JSONException e) {
                         e.printStackTrace();
                     }
@@ -1101,8 +1123,9 @@ public class Aware extends Service {
         super.onDestroy();
         if (repeatingIntent != null) alarmManager.cancel(repeatingIntent);
 
-        if (aware_BR != null) awareContext.unregisterReceiver(aware_BR);
-        if (storage_BR != null) awareContext.unregisterReceiver(storage_BR);
+        awareContext.unregisterReceiver(aware_BR);
+        awareContext.unregisterReceiver(storage_BR);
+        awareContext.unregisterReceiver(awareBoot);
     }
 
     public static void reset(Context c) {
@@ -1111,6 +1134,7 @@ public class Aware extends Service {
 
         //Remove all settings
         c.getContentResolver().delete(Aware_Settings.CONTENT_URI, null, null);
+        c.getContentResolver().delete(Scheduler_Provider.Scheduler_Data.CONTENT_URI, null, null);
 
         //Read default client settings
         SharedPreferences prefs = c.getSharedPreferences(c.getPackageName(), Context.MODE_PRIVATE);
@@ -1119,12 +1143,12 @@ public class Aware extends Service {
 
         Map<String, ?> defaults = prefs.getAll();
         for (Map.Entry<String, ?> entry : defaults.entrySet()) {
-            Aware.setSetting(c, entry.getKey(), entry.getValue(), "com.aware");
+            Aware.setSetting(c, entry.getKey(), entry.getValue(), "com.aware.phone");
         }
 
         //Keep previous AWARE Device ID and label
-        Aware.setSetting(c, Aware_Preferences.DEVICE_ID, device_id, "com.aware");
-        Aware.setSetting(c, Aware_Preferences.DEVICE_LABEL, device_label, "com.aware");
+        Aware.setSetting(c, Aware_Preferences.DEVICE_ID, device_id);
+        Aware.setSetting(c, Aware_Preferences.DEVICE_LABEL, device_label);
 
         ContentValues update_label = new ContentValues();
         update_label.put(Aware_Device.LABEL, device_label);
@@ -1146,9 +1170,6 @@ public class Aware extends Service {
             }
             if (Aware.DEBUG) Log.w(TAG, "AWARE plugins disabled...");
         }
-
-        //Remove all schedules
-        c.getContentResolver().delete(Scheduler_Provider.Scheduler_Data.CONTENT_URI, null, null);
 
         Intent applyNew = new Intent(Aware.ACTION_AWARE_REFRESH);
         c.sendBroadcast(applyNew);
@@ -1218,7 +1239,8 @@ public class Aware extends Service {
                         context.getContentResolver().insert(Aware_Plugins.CONTENT_URI, rowData);
                     }
 
-                    if (Aware.DEBUG) Log.d(TAG, "AWARE plugin added and activated:" + app.packageName);
+                    if (Aware.DEBUG)
+                        Log.d(TAG, "AWARE plugin added and activated:" + app.packageName);
 
                     Aware.startPlugin(context, app.packageName);
 
@@ -1233,6 +1255,10 @@ public class Aware extends Service {
                     //this is an update, bail out.
                     return;
                 }
+
+                //clean-up settings & schedules
+                context.getContentResolver().delete(Aware_Settings.CONTENT_URI, Aware_Plugins.PLUGIN_PACKAGE_NAME + " LIKE '" + packageName + "'", null);
+                context.getContentResolver().delete(Scheduler_Provider.Scheduler_Data.CONTENT_URI, Aware_Plugins.PLUGIN_PACKAGE_NAME + " LIKE '" + packageName + "'", null);
 
                 //Deleting
                 context.getContentResolver().delete(Aware_Plugins.CONTENT_URI, Aware_Plugins.PLUGIN_PACKAGE_NAME + " LIKE '" + packageName + "'", null);
@@ -1310,6 +1336,17 @@ public class Aware extends Service {
             }
             Intent aware = new Intent(context, Aware.class);
             context.startService(aware);
+        }
+    }
+
+    /**
+     * Checks if we still have the accessibility services active or not
+     */
+    private static final AwareBoot awareBoot = new AwareBoot();
+    public static class AwareBoot extends BroadcastReceiver {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            Applications.isAccessibilityServiceActive(context); //This shows notification automatically if the accessibility services are off
         }
     }
 
