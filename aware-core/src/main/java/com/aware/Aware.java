@@ -295,6 +295,22 @@ public class Aware extends Service {
         awareStatusMonitor = new Intent(this, Aware.class);
         repeatingIntent = PendingIntent.getService(getApplicationContext(), 0, awareStatusMonitor, 0);
         alarmManager.setRepeating(AlarmManager.RTC_WAKEUP, System.currentTimeMillis() + 1000, aware_preferences.getInt(PREF_FREQUENCY_WATCHDOG, 300) * 1000, repeatingIntent);
+
+        // Set sync schedule to Aware server every day around midnight
+        Aware.setSetting(this, Aware_Preferences.WEBSERVICE_WIFI_ONLY, true);
+
+        Scheduler.Schedule schedule = new Scheduler.Schedule("serverSync");
+        try {
+            schedule.addContext(Battery.ACTION_AWARE_BATTERY_CHARGING);
+            schedule.addHour(0).addHour(1);
+            schedule.setActionType(Scheduler.ACTION_TYPE_BROADCAST);
+            schedule.setActionClass(Aware.ACTION_AWARE_SYNC_DATA);
+            Scheduler.saveSchedule(this, schedule);
+        } catch (JSONException e) {
+            e.printStackTrace();
+            if (Aware.DEBUG) Log.d(TAG, "Sync schedule failed: " + e.getMessage());
+        }
+
     }
 
     private class AsyncPing extends AsyncTask<Void, Void, Boolean> {
@@ -1123,9 +1139,13 @@ public class Aware extends Service {
         super.onDestroy();
         if (repeatingIntent != null) alarmManager.cancel(repeatingIntent);
 
-        awareContext.unregisterReceiver(aware_BR);
-        awareContext.unregisterReceiver(storage_BR);
-        awareContext.unregisterReceiver(awareBoot);
+        try {
+            awareContext.unregisterReceiver(aware_BR);
+            awareContext.unregisterReceiver(storage_BR);
+            awareContext.unregisterReceiver(awareBoot);
+        } catch (IllegalArgumentException e) {
+            //There is no API to check if a broadcast receiver already is registered. Since Aware.java is shared accross plugins, the receiver is only registered on the client, not the plugins.
+        }
     }
 
     public static void reset(Context c) {
@@ -1324,6 +1344,7 @@ public class Aware extends Service {
      * Checks if we have access to the storage of the device. Turns off AWARE when we don't, turns it back on when available again.
      */
     private static final Storage_Broadcaster storage_BR = new Storage_Broadcaster();
+
     public static class Storage_Broadcaster extends BroadcastReceiver {
         @Override
         public void onReceive(Context context, Intent intent) {
@@ -1343,6 +1364,7 @@ public class Aware extends Service {
      * Checks if we still have the accessibility services active or not
      */
     private static final AwareBoot awareBoot = new AwareBoot();
+
     public static class AwareBoot extends BroadcastReceiver {
         @Override
         public void onReceive(Context context, Intent intent) {
