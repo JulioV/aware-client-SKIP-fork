@@ -297,6 +297,7 @@ public class Aware extends Service {
         alarmManager.setRepeating(AlarmManager.RTC_WAKEUP, System.currentTimeMillis() + 1000, aware_preferences.getInt(PREF_FREQUENCY_WATCHDOG, 300) * 1000, repeatingIntent);
 
         // Set sync schedule to Aware server every day around midnight
+        Aware.setSetting(this, Aware_Preferences.STATUS_BATTERY, true);
         Aware.setSetting(this, Aware_Preferences.WEBSERVICE_WIFI_ONLY, true);
 
         Scheduler.Schedule schedule = new Scheduler.Schedule("serverSync");
