@@ -47,6 +47,7 @@ import com.aware.utils.WebserviceHelper;
 
 import java.util.Iterator;
 import java.util.List;
+import java.util.Random;
 
 /**
  * Service that logs application usage on the device.
@@ -91,9 +92,10 @@ public class Applications extends AccessibilityService {
 
     public static final String EXTRA_DATA = "data";
 
+    private static int FREQUENCY = -1;
+
     /**
      * Given a package name, get application label in the default language of the device
-     *
      * @param package_name
      * @return appName
      */
@@ -150,13 +152,6 @@ public class Applications extends AccessibilityService {
         if (Aware.getSetting(getApplicationContext(), Aware_Preferences.STATUS_APPLICATIONS).equals("true") && event.getEventType() == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
 
             PackageManager packageManager = getPackageManager();
-
-            if (updateApps == null) {
-                updateApps = new Intent(getApplicationContext(), BackgroundService.class);
-                updateApps.setAction(ACTION_AWARE_APPLICATIONS_HISTORY);
-                repeatingIntent = PendingIntent.getService(getApplicationContext(), 0, updateApps, 0);
-                alarmManager.setRepeating(AlarmManager.RTC_WAKEUP, System.currentTimeMillis() + 1000, Integer.parseInt(Aware.getSetting(getApplicationContext(), Aware_Preferences.FREQUENCY_APPLICATIONS)) * 1000, repeatingIntent);
-            }
 
             //Fixed: Window State Changed from the same application (showing keyboard within an app) should be ignored
             boolean same_app = false;
@@ -269,8 +264,8 @@ public class Applications extends AccessibilityService {
             keyboard.put(Keyboard_Provider.Keyboard_Data.TIMESTAMP, System.currentTimeMillis());
             keyboard.put(Keyboard_Provider.Keyboard_Data.DEVICE_ID, Aware.getSetting(getApplicationContext(), Aware_Preferences.DEVICE_ID));
             keyboard.put(Keyboard_Provider.Keyboard_Data.PACKAGE_NAME, (String) event.getPackageName());
-            keyboard.put(Keyboard_Provider.Keyboard_Data.BEFORE_TEXT, (String) event.getBeforeText());
-            keyboard.put(Keyboard_Provider.Keyboard_Data.CURRENT_TEXT, event.getText().toString());
+            keyboard.put(Keyboard_Provider.Keyboard_Data.BEFORE_TEXT, anonymiseString((String) event.getBeforeText()));
+            keyboard.put(Keyboard_Provider.Keyboard_Data.CURRENT_TEXT, anonymiseString(event.getText().toString()));
             keyboard.put(Keyboard_Provider.Keyboard_Data.IS_PASSWORD, event.isPassword());
 
             getContentResolver().insert(Keyboard_Provider.Keyboard_Data.CONTENT_URI, keyboard);
@@ -280,6 +275,32 @@ public class Applications extends AccessibilityService {
             Intent keyboard_data = new Intent(Keyboard.ACTION_AWARE_KEYBOARD);
             sendBroadcast(keyboard_data);
         }
+    }
+
+    public String anonymiseString(String originalInput){
+        StringBuilder input = new StringBuilder(originalInput);
+        Random r = new Random();
+        char currentChar;
+        for(int i = 0; i < input.length(); i++) {
+            currentChar = input.charAt(i);
+            if(Character.isUpperCase(currentChar))
+                input.setCharAt(i, (char) (r.nextInt(26) + 'A'));
+            else if (Character.isLowerCase(currentChar))
+                input.setCharAt(i, (char) (r.nextInt(26) + 'a'));
+            else if (Character.isDigit(currentChar))
+                input.setCharAt(i, (char) (r.nextInt(10) + '0'));
+        }
+
+        return input.toString();
+    }
+
+    @Override
+    public void onCreate() {
+        super.onCreate();
+
+        updateApps = new Intent(getApplicationContext(), BackgroundService.class);
+        updateApps.setAction(ACTION_AWARE_APPLICATIONS_HISTORY);
+        repeatingIntent = PendingIntent.getService(getApplicationContext(), 0, updateApps, PendingIntent.FLAG_UPDATE_CURRENT);
     }
 
     @Override
@@ -305,10 +326,11 @@ public class Applications extends AccessibilityService {
         }
 
         if (Aware.getSetting(getApplicationContext(), Aware_Preferences.STATUS_APPLICATIONS).equals("true")) {
-            updateApps = new Intent(getApplicationContext(), BackgroundService.class);
-            updateApps.setAction(ACTION_AWARE_APPLICATIONS_HISTORY);
-            repeatingIntent = PendingIntent.getService(getApplicationContext(), 0, updateApps, 0);
-            alarmManager.setRepeating(AlarmManager.RTC_WAKEUP, System.currentTimeMillis() + 1000, Integer.parseInt(Aware.getSetting(getApplicationContext(), Aware_Preferences.FREQUENCY_APPLICATIONS)) * 1000, repeatingIntent);
+            if (FREQUENCY != Integer.parseInt(Aware.getSetting(getApplicationContext(), Aware_Preferences.FREQUENCY_APPLICATIONS))) {
+                alarmManager.setRepeating(AlarmManager.RTC_WAKEUP, System.currentTimeMillis() + 1000, Integer.parseInt(Aware.getSetting(getApplicationContext(), Aware_Preferences.FREQUENCY_APPLICATIONS)) * 1000, repeatingIntent);
+                FREQUENCY = Integer.parseInt(Aware.getSetting(getApplicationContext(), Aware_Preferences.FREQUENCY_APPLICATIONS));
+                if (Aware.DEBUG) Log.d(TAG, "Applications Background: " + FREQUENCY + "s check");
+            }
         }
 
         //Retro-compatibility with Gingerbread
@@ -355,10 +377,12 @@ public class Applications extends AccessibilityService {
         }
 
         if (Aware.getSetting(getApplicationContext(), Aware_Preferences.STATUS_APPLICATIONS).equals("true")) {
-            updateApps = new Intent(getApplicationContext(), BackgroundService.class);
-            updateApps.setAction(ACTION_AWARE_APPLICATIONS_HISTORY);
-            repeatingIntent = PendingIntent.getService(getApplicationContext(), 0, updateApps, 0);
-            alarmManager.setRepeating(AlarmManager.RTC_WAKEUP, System.currentTimeMillis() + 1000, Integer.parseInt(Aware.getSetting(getApplicationContext(), Aware_Preferences.FREQUENCY_APPLICATIONS)) * 1000, repeatingIntent);
+            if (FREQUENCY != Integer.parseInt(Aware.getSetting(getApplicationContext(), Aware_Preferences.FREQUENCY_APPLICATIONS))) {
+                alarmManager.setRepeating(AlarmManager.RTC_WAKEUP, System.currentTimeMillis() + 1000, Integer.parseInt(Aware.getSetting(getApplicationContext(), Aware_Preferences.FREQUENCY_APPLICATIONS)) * 1000, repeatingIntent);
+                FREQUENCY = Integer.parseInt(Aware.getSetting(getApplicationContext(), Aware_Preferences.FREQUENCY_APPLICATIONS));
+            }
+
+            if (Aware.DEBUG) Log.d(TAG, "Applications Background: " + FREQUENCY + "s check");
         }
 
         return super.onStartCommand(intent, flags, startId);
