@@ -231,7 +231,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         }
     }
 
-    @Override
+    //@Override
     public SQLiteDatabase getReadableDatabase() {
         if (database != null) {
             if (!database.isOpen()) {
