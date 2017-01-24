@@ -423,7 +423,7 @@ public class Aware extends Service {
 
     public static void debug(Context c, String message) {
         //Only collect this log if in a study
-        if (!Aware.isStudy(c)) return;
+        /*if (!Aware.isStudy(c)) return;
 
         ContentValues log = new ContentValues();
         log.put(Aware_Provider.Aware_Log.LOG_TIMESTAMP, System.currentTimeMillis());
@@ -432,7 +432,7 @@ public class Aware extends Service {
 
         if (Aware.DEBUG) Log.d(TAG, "Aware_Log: \n" + log.toString());
 
-        c.getContentResolver().insert(Aware_Provider.Aware_Log.CONTENT_URI, log);
+        c.getContentResolver().insert(Aware_Provider.Aware_Log.CONTENT_URI, log);*/
     }
 
     /**
@@ -520,8 +520,8 @@ public class Aware extends Service {
                             schedule.setActionClass(Aware.ACTION_AWARE_SYNC_DATA);
                             schedule.addHour(1).addHour(4);
 
-                            UUID uuid_device = UUID.fromString(Aware.getSetting(awareContext, Aware_Preferences.DEVICE_ID));
-                            schedule.addMinute(Math.abs((int) (uuid_device.getLeastSignificantBits() % 59)));
+                            /*UUID uuid_device = UUID.fromString(Aware.getSetting(awareContext, Aware_Preferences.DEVICE_ID));
+                            schedule.addMinute(Math.abs((int) (uuid_device.getLeastSignificantBits() % 59)));*/
 
                             Scheduler.saveSchedule(getApplicationContext(), schedule);
 

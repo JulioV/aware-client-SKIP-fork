@@ -199,7 +199,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
     	//Get reference to database file, we might not have it.
 		File database_file = getAwareDatabaseFile(mContext, database_name);
     	try {
-			SQLiteDatabase current_database = SQLiteDatabase.openOrCreateDatabase(database_file.getPath(), "passwordChangeMe",null,null);
+			SQLiteDatabase current_database = SQLiteDatabase.openOrCreateDatabase(database_file.getPath(), "WEL#Iam$7979!$#JA9A",null,null);
     	    int current_version = current_database.getVersion();
 
 			if( current_version != new_version ) {
@@ -237,7 +237,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
     	//Get reference to database file, we might not have it.
 		File database_file = getAwareDatabaseFile(mContext, database_name);
 		try {
-			SQLiteDatabase current_database = SQLiteDatabase.openDatabase(database_file.getPath(), "passwordChangeMe", null, SQLiteDatabase.OPEN_READONLY);
+			SQLiteDatabase current_database = SQLiteDatabase.openDatabase(database_file.getPath(), "WEL#Iam$7979!$#JA9A", null, SQLiteDatabase.OPEN_READONLY);
 			onOpen(current_database);
 			database = current_database;
 			return database;
