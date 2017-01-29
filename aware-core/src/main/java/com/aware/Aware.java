@@ -569,7 +569,34 @@ public class Aware extends Service {
 
             if (Aware.getSetting(getApplicationContext(), Aware_Preferences.STATUS_WEBSERVICE).equals("true")) {
                 int frequency_webservice = Integer.parseInt(Aware.getSetting(getApplicationContext(), Aware_Preferences.FREQUENCY_WEBSERVICE));
-                if (frequency_webservice == 0) {
+                // If frequency is negative, create two sync periods at 1am and 4am. Both will have random minute schedule to even-out server load.
+                if (frequency_webservice == -1){
+
+                    Scheduler.Schedule sync = Scheduler.getSchedule(this, SCHEDULE_SYNC_DATA);
+                    try {
+                        // sync is null, or sync is not null but an interval is detected or if no hours AND minutes are detected, recreate the schedule
+                        if (sync == null || (sync != null && ((sync.getInterval() > 0) || (sync.getHours().length() == 0 && sync.getMinutes().length() == 0)))) {
+                            Scheduler.Schedule schedule = new Scheduler.Schedule(SCHEDULE_SYNC_DATA);
+                            schedule.setActionType(Scheduler.ACTION_TYPE_BROADCAST);
+                            schedule.setActionIntentAction(Aware.ACTION_AWARE_SYNC_DATA);
+                            schedule.addHour(1);
+
+                            UUID uuid_device = UUID.fromString(Aware.getSetting(getApplicationContext(), Aware_Preferences.DEVICE_ID));
+                            schedule.addMinute(Math.abs((int) (uuid_device.getLeastSignificantBits() % 59)));
+
+                            Scheduler.saveSchedule(getApplicationContext(), schedule);
+
+                            if (Aware.DEBUG)
+                                Log.d(TAG, "Timed data sync created at " + schedule.getHours() + " hour(s) : " + schedule.getMinutes() + " minute(s)");
+
+                        }
+                    } catch (JSONException e) {
+                        if (Aware.DEBUG) Log.d(TAG, "Sync schedule failed: " + e.getMessage());
+                        e.printStackTrace();
+                    }
+
+                }
+                else if (frequency_webservice == 0) {
                     if (DEBUG)
                         Log.d(TAG, "Data sync is disabled.");
 

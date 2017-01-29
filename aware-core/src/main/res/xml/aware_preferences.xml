@@ -773,12 +773,12 @@
                 android:title="Charging only" />
 
             <EditTextPreference
-                android:defaultValue="30"
+                android:defaultValue="-1"
                 android:inputType="number"
                 android:key="frequency_webservice"
                 android:persistent="true"
                 android:summary="Every X minutes"
-                android:title="Sync interval (0 to disable)" />
+                android:title="Sync interval (0 to disable, -1 to 1am and 4am sync)" />
 
             <ListPreference
                 android:defaultValue="0"
