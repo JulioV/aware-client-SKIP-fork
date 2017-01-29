@@ -22,7 +22,7 @@ import android.content.res.Configuration;
 import android.database.Cursor;
 import android.database.DatabaseUtils;
 import android.database.SQLException;
-import android.database.sqlite.SQLiteException;
+import net.sqlcipher.database.SQLiteException;
 import android.graphics.Color;
 import android.location.LocationManager;
 import android.net.ConnectivityManager;
