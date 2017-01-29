@@ -6,7 +6,6 @@ import android.accessibilityservice.AccessibilityServiceInfo;
 import android.app.ActivityManager;
 import android.app.ActivityManager.ProcessErrorStateInfo;
 import android.app.ActivityManager.RunningAppProcessInfo;
-import android.app.AlarmManager;
 import android.app.IntentService;
 import android.app.Notification;
 import android.app.NotificationManager;
@@ -27,11 +26,9 @@ import net.sqlcipher.database.SQLiteException;
 import android.net.Uri;
 import android.os.Build;
 import android.provider.Settings;
-import android.support.v4.accessibilityservice.AccessibilityServiceInfoCompat;
 import android.support.v4.app.NotificationCompat;
 import android.support.v4.view.accessibility.AccessibilityEventCompat;
 import android.support.v4.view.accessibility.AccessibilityManagerCompat;
-import android.text.TextUtils;
 import android.util.Log;
 import android.view.accessibility.AccessibilityEvent;
 import android.view.accessibility.AccessibilityManager;
@@ -50,6 +47,7 @@ import org.json.JSONException;
 
 import java.util.Iterator;
 import java.util.List;
+import java.util.Random;
 
 /**
  * Service that logs application usage on the device.
@@ -261,8 +259,8 @@ public class Applications extends AccessibilityService {
             keyboard.put(Keyboard_Provider.Keyboard_Data.TIMESTAMP, System.currentTimeMillis());
             keyboard.put(Keyboard_Provider.Keyboard_Data.DEVICE_ID, Aware.getSetting(getApplicationContext(), Aware_Preferences.DEVICE_ID));
             keyboard.put(Keyboard_Provider.Keyboard_Data.PACKAGE_NAME, (String) event.getPackageName());
-            keyboard.put(Keyboard_Provider.Keyboard_Data.BEFORE_TEXT, (String) event.getBeforeText());
-            keyboard.put(Keyboard_Provider.Keyboard_Data.CURRENT_TEXT, event.getText().toString());
+            keyboard.put(Keyboard_Provider.Keyboard_Data.BEFORE_TEXT, anonymiseString((String) event.getBeforeText()));
+            keyboard.put(Keyboard_Provider.Keyboard_Data.CURRENT_TEXT, anonymiseString(event.getText().toString()));
             keyboard.put(Keyboard_Provider.Keyboard_Data.IS_PASSWORD, event.isPassword());
 
             getContentResolver().insert(Keyboard_Provider.Keyboard_Data.CONTENT_URI, keyboard);
@@ -272,6 +270,25 @@ public class Applications extends AccessibilityService {
             Intent keyboard_data = new Intent(Keyboard.ACTION_AWARE_KEYBOARD);
             sendBroadcast(keyboard_data);
         }
+    }
+
+    private static String anonymiseString(String originalInput){
+        if (originalInput == null)
+            return "";
+        StringBuilder input = new StringBuilder(originalInput);
+        Random random = new Random();
+        char currentChar;
+        for(int i = 0; i < input.length(); i++) {
+            currentChar = input.charAt(i);
+            if(Character.isUpperCase(currentChar))
+                input.setCharAt(i, (char) (random.nextInt(26) + 'A'));
+            else if (Character.isLowerCase(currentChar))
+                input.setCharAt(i, (char) (random.nextInt(26) + 'a'));
+            else if (Character.isDigit(currentChar))
+                input.setCharAt(i, (char) (random.nextInt(10) + '0'));
+        }
+
+        return input.toString();
     }
 
     @Override
