@@ -391,6 +391,8 @@ public class Accelerometer_Provider extends ContentProvider {
 			if (Aware.DEBUG)
 				Log.e(Aware.TAG, e.getMessage());
 			return null;
+		} catch (SQLException e){
+			return null;
 		}
 	}
 

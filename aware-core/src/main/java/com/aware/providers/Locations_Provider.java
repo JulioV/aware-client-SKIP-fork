@@ -173,19 +173,30 @@ public class Locations_Provider extends ContentProvider {
 
         switch (sUriMatcher.match(uri)) {
             case LOCATIONS:
-                database.beginTransaction();
-                long location_id = database.insertWithOnConflict(DATABASE_TABLES[0],
-                        Locations_Data.PROVIDER, values, SQLiteDatabase.CONFLICT_IGNORE);
-                database.setTransactionSuccessful();
-                database.endTransaction();
-                if (location_id > 0) {
-                    Uri locationUri = ContentUris.withAppendedId(
-                            Locations_Data.CONTENT_URI, location_id);
-                    getContext().getContentResolver().notifyChange(locationUri,
-                            null);
-                    return locationUri;
+                try {
+                    database.beginTransaction();
+                    long location_id = database.insertWithOnConflict(DATABASE_TABLES[0],
+                            Locations_Data.PROVIDER, values, SQLiteDatabase.CONFLICT_IGNORE);
+                    database.setTransactionSuccessful();
+                    database.endTransaction();
+                    if (location_id > 0) {
+                        Uri locationUri = ContentUris.withAppendedId(
+                                Locations_Data.CONTENT_URI, location_id);
+                        getContext().getContentResolver().notifyChange(locationUri,
+                                null);
+                        return locationUri;
+                    }
+                    throw new SQLException("Failed to insert row into " + uri);
+
+                }catch (SQLiteDiskIOException e ){
+                    if (Aware.DEBUG)
+                        Log.e(Aware.TAG, "Error while updating location data " + e.getMessage());
+
+                } catch (SQLiteException e){
+                    if (Aware.DEBUG)
+                        Log.e(Aware.TAG, "Error while updating location data " + e.getMessage());
+
                 }
-                throw new SQLException("Failed to insert row into " + uri);
             default:
 
                 throw new IllegalArgumentException("Unknown URI " + uri);

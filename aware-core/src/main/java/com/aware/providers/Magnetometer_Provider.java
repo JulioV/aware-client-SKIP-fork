@@ -402,6 +402,8 @@ public class Magnetometer_Provider extends ContentProvider {
 				Log.e(Aware.TAG, e.getMessage());
 
 			return null;
+		} catch (SQLException e){
+			return null;
 		}
 	}
 

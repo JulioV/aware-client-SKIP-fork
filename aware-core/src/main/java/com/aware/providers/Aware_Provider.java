@@ -385,18 +385,24 @@ public class Aware_Provider extends ContentProvider {
                 throw new SQLException("Failed to insert row into " + uri);
 
             case LOG:
-                database.beginTransaction();
-                long log_id = database.insertWithOnConflict(DATABASE_TABLES[4],
-                        Aware_Log.LOG_DEVICE_ID, values, SQLiteDatabase.CONFLICT_IGNORE);
-                database.setTransactionSuccessful();
-                database.endTransaction();
-                if (log_id > 0) {
-                    Uri settUri = ContentUris.withAppendedId(
-                            Aware_Log.CONTENT_URI, log_id);
-                    getContext().getContentResolver().notifyChange(settUri, null);
-                    return settUri;
+                try{
+                    database.beginTransaction();
+                    long log_id = database.insertWithOnConflict(DATABASE_TABLES[4],
+                            Aware_Log.LOG_DEVICE_ID, values, SQLiteDatabase.CONFLICT_IGNORE);
+                    database.setTransactionSuccessful();
+                    database.endTransaction();
+                    if (log_id > 0) {
+                        Uri settUri = ContentUris.withAppendedId(
+                                Aware_Log.CONTENT_URI, log_id);
+                        getContext().getContentResolver().notifyChange(settUri, null);
+                        return settUri;
+                    }
+                    throw new SQLException("Failed to insert row into " + uri);
+
+                } catch (SQLiteException e){
+                    if (Aware.DEBUG)
+                        Log.e(Aware.TAG, "Error while doing an insertWithOnConflict LOG " + e.getMessage());
                 }
-                throw new SQLException("Failed to insert row into " + uri);
             default:
                 throw new IllegalArgumentException("Unknown URI " + uri);
         }
@@ -523,6 +529,8 @@ public class Aware_Provider extends ContentProvider {
             if (Aware.DEBUG)
                 Log.e(Aware.TAG, e.getMessage());
             return null;
+        } catch (SQLException e){
+            return null;
         }
     }
 
@@ -555,11 +563,16 @@ public class Aware_Provider extends ContentProvider {
                 database.endTransaction();
                 break;
             case PLUGIN:
-                database.beginTransaction();
-                count = database.update(DATABASE_TABLES[2], values, selection,
-                        selectionArgs);
-                database.setTransactionSuccessful();
-                database.endTransaction();
+                try{
+                    database.beginTransaction();
+                    count = database.update(DATABASE_TABLES[2], values, selection,
+                            selectionArgs);
+                    database.setTransactionSuccessful();
+                    database.endTransaction();
+                } catch (SQLiteException e){
+                    if (Aware.DEBUG)
+                        Log.e(Aware.TAG, "Error while doing an insertWithOnConflict LOG " + e.getMessage());
+                }
                 break;
             case STUDY:
                 database.beginTransaction();

@@ -716,7 +716,7 @@ public class Aware extends Service {
                                         .setActionIntentAction(Aware.ACTION_AWARE_SPACE_MAINTENANCE);
                                 break;
                         }
-                        Scheduler.saveSchedule(getApplicationContext(), cleanup);
+                        //Scheduler.saveSchedule(getApplicationContext(), cleanup);
                     }
                 } catch (JSONException e) {
                     e.printStackTrace();
