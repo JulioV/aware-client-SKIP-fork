@@ -12,6 +12,7 @@ import com.koushikdutta.async.future.Future;
 import com.koushikdutta.async.future.FutureCallback;
 import com.koushikdutta.ion.Ion;
 
+import java.io.BufferedInputStream;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
@@ -22,6 +23,11 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.net.URL;
+import java.security.cert.Certificate;
+import java.security.cert.CertificateException;
+import java.security.cert.CertificateFactory;
+import java.security.cert.X509Certificate;
+import java.util.Calendar;
 import java.util.concurrent.ExecutionException;
 
 /**
@@ -36,6 +42,7 @@ public class SSLManager extends IntentService {
      * The server we need certificates from
      */
     public static final String EXTRA_SERVER = "aware_server";
+    private static Certificate certificate;
 
     public SSLManager() { super(Aware.TAG + " SSL manager"); }
 
@@ -125,6 +132,15 @@ public class SSLManager extends IntentService {
                     public void onCompleted(Exception e, File result) {
                         if( e != null ) {
                             Log.d(Aware.TAG, "ERROR SSL certificate: " + e.getMessage());
+                        }else{
+                            try {
+                                InputStream certificateStream = new FileInputStream(result);
+                                CertificateFactory cf = CertificateFactory.getInstance("X.509");
+                                InputStream caInput = new BufferedInputStream(certificateStream);
+                                certificate = cf.generateCertificate(caInput);
+                            } catch (CertificateException | FileNotFoundException exception) {
+                                exception.printStackTrace();
+                            }
                         }
                     }
                 });
@@ -241,6 +257,16 @@ public class SSLManager extends IntentService {
             OutputStreamWriter cert_f = new OutputStreamWriter(stream);
             cert_f.write(cert_data);
             cert_f.close();
+
+            InputStream certificateStream = new FileInputStream(cert_file);
+            try {
+                CertificateFactory cf = CertificateFactory.getInstance("X.509");
+                InputStream caInput = new BufferedInputStream(certificateStream);
+                certificate = cf.generateCertificate(caInput);
+            } catch (CertificateException e) {
+                e.printStackTrace();
+            }
+
             Log.d(Aware.TAG, "Set certificate for " + hostname);
         } catch (java.io.IOException e) {
             Log.d(Aware.TAG, "Can not write certificate: " + cert_file);
@@ -254,50 +280,14 @@ public class SSLManager extends IntentService {
      * Load HTTPS certificate from server: server.crt
      * @param c context
      * @param server server URL, http://{hostname}/index.php
-     * @return FileInputStream of certificate
      * @throws FileNotFoundException
      */
-    public static InputStream getHTTPS(Context c, String server) throws FileNotFoundException {
-        Uri study_uri = Uri.parse(server);
-        String hostname = study_uri.getHost();
 
-        if (hostname == null || hostname.length() == 0) return null;
-
+    public static Certificate getHTTPS(Context c, String server) throws FileNotFoundException {
         //Makes sure we always have the latest certificate
-        downloadCertificate(c, hostname, true);
-
-        File host_credentials = new File( c.getExternalFilesDir(null) + "/Documents/", "credentials/"+ hostname );
-        if( host_credentials.exists() ) {
-            File[] certs = host_credentials.listFiles();
-            for(File crt : certs ) {
-                if( crt.getName().equals("server.crt") ) return new FileInputStream(crt);
-            }
+        if(certificate == null || (Calendar.getInstance().getTime().after(((X509Certificate) certificate).getNotAfter()))) {
+            downloadCertificate(c, Uri.parse(server).getHost(), true);
         }
-        return null;
-    }
-
-    /**
-     * Load certificate for MQTT server: server.crt
-     * NOTE: different from getHTTPS. Here, we have the MQTT server address/IP as input parameter.
-     * @param c context
-     * @param server server hostname
-     * @return Input stream of opened certificate.
-     * @throws FileNotFoundException
-     */
-    public static InputStream getCertificate(Context c, String server) throws FileNotFoundException {
-        //Fixed: make sure we have a valid server name
-        if (server == null || server.length() == 0) return null;
-
-        //Makes sure we always have the latest certificate
-        downloadCertificate(c, server, true);
-
-        File host_credentials = new File( c.getExternalFilesDir(null) + "/Documents/", "credentials/"+ server );
-        if( host_credentials.exists() ) {
-            File[] certs = host_credentials.listFiles();
-            for(File crt : certs ) {
-                if( crt.getName().equals("server.crt") ) return new FileInputStream(crt);
-            }
-        }
-        return null;
+        return certificate;
     }
 }

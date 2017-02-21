@@ -24,7 +24,6 @@ import org.json.JSONObject;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.io.InputStream;
 import java.security.KeyManagementException;
 import java.security.KeyStore;
 import java.security.KeyStoreException;
@@ -108,8 +107,7 @@ public class DownloadPluginService extends IntentService {
 
                 if( protocol.equals("https") ) { //Load SSL public certificate so we can talk with server
                     CertificateFactory cf = CertificateFactory.getInstance("X.509");
-                    InputStream caInput = SSLManager.getHTTPS(getApplicationContext(), study_url);
-                    Certificate ca = cf.generateCertificate(caInput);
+                    Certificate ca = SSLManager.getHTTPS(getApplicationContext(), study_url);
                     KeyStore keyStore = KeyStore.getInstance(KeyStore.getDefaultType());
                     keyStore.load(null, null); //initialize as empty keystore
                     keyStore.setCertificateEntry("ca", ca); //add our certificate to keystore

@@ -22,6 +22,7 @@ import java.security.NoSuchAlgorithmException;
 import java.security.cert.Certificate;
 import java.security.cert.CertificateException;
 import java.security.cert.CertificateFactory;
+import java.security.cert.X509Certificate;
 import java.util.Enumeration;
 import java.util.Hashtable;
 import java.util.zip.GZIPInputStream;
@@ -40,7 +41,7 @@ public class Https {
      * Initialise a HTTPS client
      * @param certificate SSL certificate
      */
-    public Https(InputStream certificate) {
+    public Https(Certificate certificate) {
         if (certificate == null) {
             Log.e(TAG, "Unable to read certificate!");
             return;
@@ -52,9 +53,7 @@ public class Https {
             trustManagerFactory.init(keyStore); //add our keystore to the trusted keystores
 
             //Load SSL public certificate so we can talk with the server
-            CertificateFactory cf = CertificateFactory.getInstance("X.509");
-            InputStream caInput = new BufferedInputStream(certificate);
-            Certificate ca = cf.generateCertificate(caInput);
+            Certificate ca = certificate;
             keyStore.load(null, null); //initialize as empty keystore
             keyStore.setCertificateEntry("ca", ca); //add our certificate to keystore
             trustManagerFactory.init(keyStore); //add our keystore to the trusted keystores
