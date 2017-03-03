@@ -852,7 +852,7 @@
                 android:title="Study URL" />
 
             <CheckBoxPreference
-                android:defaultValue="false"
+                android:defaultValue="true"
                 android:key="webservice_wifi_only"
                 android:persistent="true"
                 android:summary="Sync only over Wi-Fi"
@@ -876,7 +876,7 @@
                 android:title="Charging only" />
 
             <EditTextPreference
-                android:defaultValue="-1"
+                android:defaultValue="60"
                 android:inputType="number"
                 android:key="frequency_webservice"
                 android:persistent="true"
@@ -900,7 +900,7 @@
                 android:title="Quiet sync" />
 
             <CheckBoxPreference
-                android:defaultValue="false"
+                android:defaultValue="true"
                 android:key="remind_to_charge"
                 android:persistent="true"
                 android:summary="Remind to charge when 15%"
