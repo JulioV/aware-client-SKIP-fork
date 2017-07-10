@@ -78,6 +78,7 @@ import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Enumeration;
 import java.util.Hashtable;
 import java.util.List;
@@ -180,6 +181,7 @@ public class Aware extends Service {
     /**
      * Used on the scheduler class to define global schedules for AWARE, SYNC and SPACE MAINTENANCE actions
      */
+    public static final String SCHEDULE_RESET_WIFI_ADAPTER = "schedule_aware_reset_wifi_adapter";
     public static final String SCHEDULE_SYNC_DATA = "schedule_aware_sync_data";
     public static final String SCHEDULE_STUDY_COMPLIANCE = "schedule_aware_study_compliance";
     public static final String SCHEDULE_KEEP_ALIVE = "schedule_aware_keep_alive";
@@ -545,7 +547,17 @@ public class Aware extends Service {
     public static Cursor getStudy(Context c, String study_url) {
         return c.getContentResolver().query(Aware_Provider.Aware_Studies.CONTENT_URI, null, Aware_Provider.Aware_Studies.STUDY_URL + " LIKE '" + study_url + "%' AND " + Aware_Provider.Aware_Studies.STUDY_EXIT + "=0", null, Aware_Provider.Aware_Studies.STUDY_TIMESTAMP + " DESC LIMIT 1");
     }
+    public static boolean areHoursEqual(JSONArray schedule, List<Integer> newSchedule) throws JSONException {
+        List<Integer> oldSchedule = new ArrayList<>();
+        if(schedule == null || schedule.length() != newSchedule.size())
+            return false;
+        for (int i = 0; i < schedule.length(); i++) {
+            oldSchedule.add(schedule.getInt(i));
+        }
+        return oldSchedule.equals(newSchedule);
+    }
 
+    static final List<Integer> newHours = Arrays.asList(1,7,13,19);
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         super.onStartCommand(intent, flags, startId);
@@ -591,6 +603,33 @@ public class Aware extends Service {
 
             if (Aware.getSetting(getApplicationContext(), Aware_Preferences.AWARE_DONATE_USAGE).equals("true")) {
                 new AsyncPing().execute();
+            }
+            // Reset WiFi adapter every 6 hours due to a bug with the phone
+            Scheduler.Schedule wifiResetScheduler = Scheduler.getSchedule(this, SCHEDULE_RESET_WIFI_ADAPTER);
+            // static final List<Integer> newHours = Arrays.asList(1,7,13,19);
+
+            try {
+                if(wifiResetScheduler != null)
+                    Log.d(Aware.TAG, "WiFi reset alarm before" + areHoursEqual(wifiResetScheduler.getHours(), newHours));
+                if (wifiResetScheduler == null || !areHoursEqual(wifiResetScheduler.getHours(), newHours)) {
+                    Scheduler.Schedule newSchedule = new Scheduler.Schedule(SCHEDULE_RESET_WIFI_ADAPTER);
+                    newSchedule.setActionType(Scheduler.ACTION_TYPE_BROADCAST);
+                    newSchedule.setActionIntentAction(WiFi.ACTION_AWARE_WIFI_RESET_ADAPTER);
+                    for (Integer hour : newHours) {
+                        newSchedule.addHour(hour);
+                    }
+                    newSchedule.addMinute(0);
+                    Log.d(Aware.TAG, "WiFi reset alarm after" + areHoursEqual(newSchedule.getHours(), newHours));
+                    //newSchedule.addMinute(45).addMinute(50).addMinute(55);//.addHour(1).addHour(13)
+
+                    Scheduler.saveSchedule(getApplicationContext(), newSchedule);
+
+                    if (Aware.DEBUG)
+                        Log.d(TAG, "WiFi reset alarm schedule created at " + newSchedule.getHours() + " hours");
+                }
+            } catch (JSONException e) {
+                if (Aware.DEBUG) Log.d(TAG, "WiFi reset alarm schedule failed: " + e.getMessage());
+                e.printStackTrace();
             }
 
             //only the client and self-contained apps need to run the keep alive. Plugins are handled by them.

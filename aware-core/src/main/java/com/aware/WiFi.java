@@ -77,6 +77,12 @@ public class WiFi extends Aware_Sensor {
      */
     public static final String ACTION_AWARE_WIFI_REQUEST_SCAN = "ACTION_AWARE_WIFI_REQUEST_SCAN";
 
+    /**
+     * Broadcast reset WiFi adapter
+     */
+
+    public static final String ACTION_AWARE_WIFI_RESET_ADAPTER = "ACTION_AWARE_WIFI_RESET_ADAPTER";
+
     @Override
     public void onCreate() {
         super.onCreate();
@@ -86,6 +92,7 @@ public class WiFi extends Aware_Sensor {
 
         IntentFilter filter = new IntentFilter();
         filter.addAction(WifiManager.SCAN_RESULTS_AVAILABLE_ACTION);
+        filter.addAction(WiFi.ACTION_AWARE_WIFI_RESET_ADAPTER);
         registerReceiver(wifiMonitor, filter);
 
         backgroundService = new Intent(this, BackgroundService.class);
@@ -150,6 +157,19 @@ public class WiFi extends Aware_Sensor {
                 Intent backgroundService = new Intent(context, BackgroundService.class);
                 backgroundService.setAction(WifiManager.SCAN_RESULTS_AVAILABLE_ACTION);
                 context.startService(backgroundService);
+            }
+
+            if(intent.getAction().equals(WiFi.ACTION_AWARE_WIFI_RESET_ADAPTER)){
+                Log.d(Aware.TAG, "Sync wifi restart received");
+                wifiManager.setWifiEnabled(false);
+                try {
+                    Thread.sleep(1000 * 5);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+                wifiManager.setWifiEnabled(true);
+
+
             }
         }
     }

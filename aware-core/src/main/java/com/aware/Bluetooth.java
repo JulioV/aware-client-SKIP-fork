@@ -120,6 +120,7 @@ public class Bluetooth extends Aware_Sensor {
         filter.addAction(BluetoothAdapter.ACTION_DISCOVERY_FINISHED);
         filter.addAction(BluetoothAdapter.ACTION_DISCOVERY_STARTED);
         filter.addAction(BluetoothAdapter.ACTION_STATE_CHANGED);
+        filter.addAction(Aware.ACTION_AWARE_SYNC_DATA);
         registerReceiver(bluetoothMonitor, filter);
 
         Intent backgroundService = new Intent(ACTION_AWARE_BLUETOOTH_REQUEST_SCAN);
@@ -298,6 +299,18 @@ public class Bluetooth extends Aware_Sensor {
                     }
                 }
             }
+
+            if(intent.getAction().equals(Aware.ACTION_AWARE_SYNC_DATA)){
+                if (bluetoothAdapter.isEnabled()) {
+                    bluetoothAdapter.disable();
+                    try {
+                        Thread.sleep(1000 * 5);
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
+                    bluetoothAdapter.enable();
+                }
+            }
         }
     }
 
@@ -322,7 +335,7 @@ public class Bluetooth extends Aware_Sensor {
     }
 
     private static void notifyMissingBluetooth(Context c, boolean dismiss) {
-        if (!dismiss) {
+        /*if (!dismiss) {
             //Remind the user that we need Bluetooth on for data collection
             NotificationCompat.Builder builder = new NotificationCompat.Builder(c)
                     .setSmallIcon(R.drawable.ic_stat_aware_accessibility)
@@ -344,6 +357,6 @@ public class Bluetooth extends Aware_Sensor {
             } catch (NullPointerException e) {
                 if (Aware.DEBUG) Log.d(Aware.TAG, "Notification exception: " + e);
             }
-        }
+        }*/
     }
 }
